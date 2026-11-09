@@ -48,6 +48,8 @@ export const DE = {
   'This printer model is not supported by ptouch-print.': 'Dieses Druckermodell wird von ptouch-print nicht unterstützt.',
   'This printer model is not supported.': 'Dieses Druckermodell wird nicht unterstützt.',
   'No printer found. Check the connection and that the printer is switched on.': 'Kein Drucker gefunden. Verbindung prüfen und den Drucker einschalten.',
+  'No supported Brother P-touch printer found on USB.': 'Kein unterstützter Brother P-touch-Drucker an USB gefunden.',
+  'No supported Brother P-touch printer found on USB with serial {serial}.': 'Kein unterstützter Brother P-touch-Drucker an USB mit Seriennummer {serial} gefunden.',
   'No printer configured. Set printers or printer_host in config.php.': 'Kein Drucker eingerichtet. printers oder printer_host in config.php setzen.',
   'The printer is not ready.': 'Der Drucker ist nicht bereit.',
   'A printer is attached, but the web server may not use it. Install the udev rule (see docs/INSTALL.md).': 'Ein Drucker ist angeschlossen, aber der Webserver darf ihn nicht benutzen. Die udev-Regel installieren (siehe docs/INSTALL.md).',
