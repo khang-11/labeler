@@ -328,6 +328,40 @@ printf '{\"bad\": 1}'");
         $this->assertSame([], $this->withPrinters([], '', $scalar)->printers());
     }
 
+    public function testDiscover(): void
+    {
+        $bin = $this->tmp . '/scan-ptouch';
+        file_put_contents(
+            $bin,
+            "#!/bin/sh\nprintf '[{\"host\":\"192.168.8.235\",\"model\":\"PT-P900W\",\"serial\":\"S1\",\"media_width_mm\":24,\"ready\":true},{\"host\":\"8.8.8.8\",\"model\":\"other\"}]'"
+        );
+        chmod($bin, 0755);
+        $printer = new Ptouch($bin, [], '', 20, null, null, '192.0.2.0/24');
+        $found = $printer->discover();
+        $this->assertCount(1, $found);
+        $this->assertSame('net:192.168.8.235', $found[0]['id']);
+        $this->assertSame('PT-P900W', $found[0]['model']);
+        $this->assertSame('', $printer->discoveryError());
+
+        $selected = $printer->withPrinter('net:192.168.8.235');
+        $this->assertSame('__discovered', $selected->currentId());
+        $this->assertSame('', $printer->withPrinter('net:8.8.8.8')->currentId());
+    }
+
+    public function testDiscoveryCanBeDisabledAndFail(): void
+    {
+        $printer = new Ptouch(self::simBin(), [], '', 20);
+        $this->assertSame([], $printer->discover());
+        $this->assertStringContainsString('disabled', $printer->discoveryError());
+
+        $bad = $this->tmp . '/bad-ptouch';
+        file_put_contents($bad, "#!/bin/sh\nprintf 'not json'");
+        chmod($bad, 0755);
+        $broken = new Ptouch($bad, [], '', 20, null, null, '192.0.2.0/24');
+        $this->assertSame([], $broken->discover());
+        $this->assertStringContainsString('failed', $broken->discoveryError());
+    }
+
     public function testDecodeErrors(): void
     {
         $this->assertSame([], Ptouch::decodeErrors(0));

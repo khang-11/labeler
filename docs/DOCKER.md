@@ -25,6 +25,7 @@ Set the printer host; ptouch detects the model and the tape:
 ```
 
 For several printers use `LABELER_PRINTERS` JSON and `LABELER_PRINTER` (see the README).
+Set `LABELER_DISCOVERY_CIDR` (for example `192.168.8.0/24`) to enable the “Find printers” button in the printer details.
 `LABELER_PRINTER_MODEL` and `LABELER_PRINTER_TAPE_WIDTH` are optional overrides.
 
 ## Printer on another computer

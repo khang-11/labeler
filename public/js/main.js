@@ -1,6 +1,6 @@
 // Labeler user interface.
 import {
-  getStatus, getFonts, getLog, getPrinters, setPrinter, fontUrl, printLabel, login, logout, getLabels, saveLabel, deleteLabel,
+  getStatus, getFonts, getLog, getPrinters, discoverPrinters, setPrinter, fontUrl, printLabel, login, logout, getLabels, saveLabel, deleteLabel,
 } from './api.js';
 import {
   BLOCK_NAMES, FONTS, TAPES, defaultLabel, newBlock, newId, normalizeLabel, pxToMm, tapePx,
@@ -13,7 +13,7 @@ import { parseBatch } from './csv.js';
 import { KINDS } from './qrcontent.js';
 import { History } from './history.js';
 import { TEMPLATES, findTemplate } from './templates.js';
-import { LANGUAGES, detectLanguage, setLanguage, language, watch, misses } from './i18n.js';
+import { LANGUAGES, detectLanguage, setLanguage, language, watch, misses, t } from './i18n.js';
 import { FORMATS } from './barcodes.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -1022,12 +1022,48 @@ async function renderPrinterChoice() {
   const choice = $('#printer-choice');
   const res = await getPrinters();
   const printers = res.ok ? res.data.printers || [] : [];
+  const current = load(STORE_PRINTER, load('labeler.serial', ''));
+  if (current && !printers.some((p) => p.id === current)) {
+    const active = state.status && state.status.printer;
+    printers.push({ id: current, model: active && active.model ? active.model : 'Printer', serial: active && active.serial ? active.serial : current, usable: true });
+  }
   choice.hidden = printers.length < 2;
   if (choice.hidden) return;
-  const current = load(STORE_PRINTER, load('labeler.serial', ''));
   $('#printer-select').innerHTML = printers.map((p) =>
     `<option value="${esc(p.id)}"${p.id === current ? ' selected' : ''}${p.usable ? '' : ' disabled'}>${esc(p.model || p.id)} · ${esc(p.serial || p.id)}${p.usable ? '' : ' (not usable)'}</option>`).join('');
   if (!printers.some((p) => p.id === current)) $('#printer-select').selectedIndex = -1;
+}
+
+async function discoverAndShow() {
+  const button = $('#scan-printers');
+  const status = $('#scan-status');
+  const list = $('#scan-results');
+  button.disabled = true;
+  status.textContent = t('Scanning…');
+  list.innerHTML = '';
+  const res = await discoverPrinters();
+  button.disabled = false;
+  if (!res.ok) {
+    status.textContent = res.data.error || t('the server cannot be reached');
+    return;
+  }
+  const printers = res.data.printers || [];
+  if (printers.length === 0) {
+    status.textContent = t('No printers found.');
+    return;
+  }
+  status.textContent = '';
+  list.innerHTML = printers.map((p) =>
+    `<li><button type="button" class="secondary" data-printer="${esc(p.id)}">${esc(p.model || 'Printer')} · ${esc(p.host)}</button></li>`).join('');
+  list.querySelectorAll('button[data-printer]').forEach((choice) => {
+    choice.addEventListener('click', async () => {
+      store(STORE_PRINTER, choice.dataset.printer);
+      setPrinter(choice.dataset.printer);
+      await refreshStatus();
+      $('#details').close();
+      openDetails();
+    });
+  });
 }
 
 async function openDetails() {
@@ -1110,6 +1146,7 @@ function init() {
   $('#print').addEventListener('click', onPrint);
   $('#download').addEventListener('click', onDownload);
   $('#status').addEventListener('click', openDetails);
+  $('#scan-printers').addEventListener('click', discoverAndShow);
   $('#retry').addEventListener('click', refreshStatus);
   $('#details-refresh').addEventListener('click', async () => {
     await refreshStatus();

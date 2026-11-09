@@ -191,6 +191,16 @@ final class SimulatorTest extends TestCase
         $this->assertStringContainsString('not supported', $status['message']);
     }
 
+    public function testScan(): void
+    {
+        $discovered = [['host' => '192.0.2.10', 'model' => 'PT-P900W', 'serial' => 'S1', 'media_width_mm' => 24, 'ready' => true]];
+        $r = $this->sim(['--scan', '192.0.2.0/24', '--json'], ['discovered' => $discovered]);
+        $this->assertSame($discovered, json_decode($r['stdout'], true));
+        $human = $this->sim(['--scan', '192.0.2.0/24'], ['discovered' => $discovered]);
+        $this->assertStringContainsString('PT-P900W', $human['stdout']);
+        $this->assertSame([], json_decode($this->sim(['--scan', '192.0.2.0/24', '--json'], ['discovered' => 'not json'])['stdout'], true));
+    }
+
     public function testHumanListConnected(): void
     {
         $r = $this->sim(['--list-connected']);

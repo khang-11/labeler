@@ -28,6 +28,7 @@ final class ConfigProcessLogTest extends TestCase
         $this->assertSame('A1', $config->get('serial'));
         $this->assertNull($config->get('vertical_offset'));
         $this->assertSame(19, Config::load($this->tmp . '/empty', null, ['LABELER_VERTICAL_OFFSET' => '19'])->get('vertical_offset'));
+        $this->assertSame('192.0.2.0/24', Config::load($this->tmp . '/empty', null, ['LABELER_DISCOVERY_CIDR' => '192.0.2.0/24'])->get('discovery_cidr'));
         $this->assertSame('default', $config->get('printer'));
         $this->assertSame('A1', $config->get('printers')['default']['serial']);
         $this->assertSame('', $config->get('printer_url'));

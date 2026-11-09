@@ -55,6 +55,7 @@ final class Api
             'font' => ['GET', 'font'],
             'log' => ['GET', 'log'],
             'printers' => ['GET', 'printers'],
+            'discover' => ['GET', 'discover'],
             'login' => ['POST', 'login'],
             'labels' => ['GET', 'labels'],
             'label-save' => ['POST', 'labelSave'],
@@ -363,6 +364,19 @@ final class Api
         }
         $printers = $this->printer->printers();
         return Response::json(200, ['supported' => true, 'printers' => $printers]);
+    }
+
+    private function discover(): Response
+    {
+        if ($this->remote !== null) {
+            return $this->forward('GET', 'discover');
+        }
+        $printers = $this->printer->discover();
+        $error = $this->printer->discoveryError();
+        if ($error !== '') {
+            return Response::json(502, ['error' => $error, 'printers' => $printers]);
+        }
+        return Response::json(200, ['printers' => $printers]);
     }
 
     private function log(): Response

@@ -45,6 +45,7 @@ Needs Python 3.11 or newer for ptouch.
 - **Printing**: copies, chain printing and auto cut where the installed ptouch and the
   printer support them; download the label as PNG.
 - **Several printers** on one computer or network: configure them in `printers` and pick one in the printer details.
+- **Printer discovery**: scan the network for Brother printers (SNMP) and pick one in the printer details; USB printers are listed automatically.
 - **Printer status** with tape width and colour, clear messages for a missing printer, missing
   tape, open cover, cutter jam, overheating, weak batteries, P-Lite mode or missing USB permissions,
   a check after every print job (ptouch itself does not notice a jam during printing), a hint

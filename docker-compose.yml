@@ -18,6 +18,7 @@ services:
       # LABELER_PRINTER_MODEL: P900W        # optional override
       # LABELER_PRINTER_TAPE_WIDTH: "24"    # optional override
       # LABELER_PRINTER_COMMUNITY: public
+      # LABELER_DISCOVERY_CIDR: "192.168.8.0/24"   # enables the Find printers button
       # 2) or a printer on another computer running the printer agent:
       # LABELER_PRINTER_URL: "http://printer-pi:8631"
       # LABELER_PRINTER_TOKEN: "paste-the-token-of-the-agent"

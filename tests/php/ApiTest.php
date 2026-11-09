@@ -193,6 +193,23 @@ final class ApiTest extends TestCase
         $this->assertSame(200, $status, '128 px fit the 24 mm tape of the second printer');
     }
 
+    public function testDiscovery(): void
+    {
+        $this->simulate([
+            'printer' => 'PT-P900W',
+            'tape_mm' => 24,
+            'discovered' => json_encode([['host' => '192.168.8.235', 'model' => 'PT-P900W', 'serial' => 'S1', 'media_width_mm' => 24, 'ready' => true]]),
+        ]);
+        [$status, $body] = $this->call('GET', 'discover', '', '', ['LABELER_DISCOVERY_CIDR' => '192.0.2.0/24']);
+        $this->assertSame(200, $status);
+        $this->assertSame('net:192.168.8.235', $body['printers'][0]['id']);
+        [$status, $body] = $this->call('GET', 'status', '', '', [], ['printer' => 'net:192.168.8.235']);
+        $this->assertSame([200, 'PT-P900W'], [$status, $body['printer']['model']]);
+        [$status, $body] = $this->call('GET', 'discover');
+        $this->assertSame(502, $status);
+        $this->assertStringContainsString('disabled', $body['error']);
+    }
+
     public function testAccessToken(): void
     {
         $this->simulate(['version' => '1.9']);

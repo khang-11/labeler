@@ -72,6 +72,7 @@ final class Simulator
             'out' => '',             // folder for printed labels, empty = discard
             'delay_ms' => 0,         // time a print takes
             'others' => [],          // more printers: list of {printer, serial, tape_mm}
+            'discovered' => [],      // result of --scan --json
             'fail' => '',            // "print": write error; "jam": print looks fine, then error
         ];
     }
@@ -129,8 +130,9 @@ final class Simulator
             'copies' => 1, 'chain' => false, 'precut' => false, 'full_cut' => false,
             'no_margin' => false, 'host' => null, 'usb' => false, 'serial' => null,
             'printer' => null, 'tape_width' => 0.0, 'list_connected' => false,
+            'scan' => null,
         ];
-        $valueOptions = ['image', 'copies', 'host', 'serial', 'printer', 'tape-width', 'vertical-offset', 'snmp-community'];
+        $valueOptions = ['image', 'copies', 'host', 'serial', 'printer', 'tape-width', 'vertical-offset', 'snmp-community', 'scan'];
         $flagOptions = ['version', 'status', 'json', 'chain', 'precut', 'full-cut', 'no-margin',
             'usb', 'list-connected', 'high-resolution'];
         $count = count($argv);
@@ -163,6 +165,8 @@ final class Simulator
                     $args['tape_width'] = (float) $value;
                 } elseif ($name === 'snmp-community' || $name === 'vertical-offset') {
                     // accepted, not simulated
+                } elseif ($name === 'scan') {
+                    $args['scan'] = $value;
                 } else {
                     $args[$name] = $value;
                 }
@@ -192,6 +196,9 @@ final class Simulator
         }
         if ($args['list_connected']) {
             return $this->listConnected((bool) $args['json']);
+        }
+        if ($args['scan'] !== null) {
+            return $this->scan((bool) $args['json']);
         }
         if ($args['status']) {
             return $this->status((bool) $args['json'], $args);
@@ -342,6 +349,25 @@ final class Simulator
             }
         }
         return $printers === [] ? 5 : 0;
+    }
+
+    private function scan(bool $json): int
+    {
+        $list = $this->state['discovered'];
+        if (is_string($list)) {
+            $list = json_decode($list, true);
+        }
+        $list = is_array($list) ? $list : [];
+        if ($json) {
+            $this->say((string) json_encode($list, JSON_PRETTY_PRINT));
+        } else {
+            foreach ($list as $printer) {
+                if (is_array($printer)) {
+                    $this->say(($printer['host'] ?? '?') . "\t" . ($printer['model'] ?? 'unknown'));
+                }
+            }
+        }
+        return 0;
     }
 
     /** @return list<array<string, mixed>> */

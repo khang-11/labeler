@@ -27,6 +27,7 @@ export const getStatus = () => call('status');
 export const getFonts = () => call('fonts');
 export const getLog = () => call('log');
 export const getPrinters = () => call('printers');
+export const discoverPrinters = () => call('discover');
 const post = (action, body) => call(action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 export const login = (password) => post('login', { password });
 export const getLabels = () => call('labels');

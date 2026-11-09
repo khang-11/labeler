@@ -31,6 +31,7 @@ export default defineConfig({
       LABELER_DATA_DIR: resolve(RUN, 'data'),
       LABELER_FONTS_DIR: resolve(RUN, 'fonts'),
       LABELER_MAX_COPIES: '10',
+      LABELER_DISCOVERY_CIDR: '192.0.2.0/24',
       PTSIM_STATE: resolve(RUN, 'sim-state.json'),
       PTSIM_OUT: resolve(RUN, 'printed'),
     },

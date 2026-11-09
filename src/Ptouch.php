@@ -54,6 +54,8 @@ final class Ptouch
     private array $printers;
     private string $current;
     private ?int $verticalOffset;
+    private ?string $discoveryCidr;
+    private string $discoveryError = '';
     private ?Log $log;
     private ?string $version = null;
 
@@ -66,7 +68,8 @@ final class Ptouch
         string $defaultPrinter,
         int $timeout = 60,
         ?Log $log = null,
-        ?int $verticalOffset = null
+        ?int $verticalOffset = null,
+        ?string $discoveryCidr = null
     ) {
         $this->bin = $bin;
         $this->printers = $printers;
@@ -74,6 +77,7 @@ final class Ptouch
         $this->timeout = $timeout;
         $this->log = $log;
         $this->verticalOffset = $verticalOffset;
+        $this->discoveryCidr = $discoveryCidr;
     }
 
     public static function fromConfig(Config $config, ?Log $log = null): self
@@ -84,7 +88,8 @@ final class Ptouch
             (string) $config->get('printer'),
             (int) $config->get('timeout'),
             $log,
-            is_numeric($config->get('vertical_offset')) ? (int) $config->get('vertical_offset') : null
+            is_numeric($config->get('vertical_offset')) ? (int) $config->get('vertical_offset') : null,
+            (string) $config->get('discovery_cidr')
         );
     }
 
@@ -121,6 +126,20 @@ final class Ptouch
         }
         if (strncmp($id, 'usb:', 4) === 0) {
             $id = substr($id, 4);
+        }
+        if (strncmp($id, 'net:', 4) === 0) {
+            $host = substr($id, 4);
+            if (!self::isPrivateHost($host)) {
+                return $this;
+            }
+            $copy = clone $this;
+            $community = $this->printers[$this->current]['community'] ?? 'public';
+            $copy->printers['__discovered'] = [
+                'id' => '__discovered', 'host' => $host, 'usb' => false, 'serial' => '',
+                'model' => '', 'community' => (string) $community, 'tape_width' => 0.0,
+            ];
+            $copy->current = '__discovered';
+            return $copy;
         }
         if (isset($this->printers[$id])) {
             $copy = clone $this;
@@ -244,6 +263,71 @@ final class Ptouch
         $failed = $result['code'] !== 0
             || preg_match('/error:|failed|not ready|no supported|could not|too large|nothing to print/i', $output);
         return ['ok' => !$failed, 'output' => $output, 'notes' => []];
+    }
+
+    /**
+     * Find Brother printers on the configured network.
+     *
+     * @return list<array{id: string, host: string, model: string|null, serial: string|null, media_width_mm: int|null, ready: bool, kind: string, usable: bool}>
+     */
+    public function discover(): array
+    {
+        $this->discoveryError = '';
+        if ($this->discoveryCidr === null || $this->discoveryCidr === '') {
+            $this->discoveryError = 'Printer discovery is disabled. Set discovery_cidr in config.php.';
+            return [];
+        }
+        $result = $this->run(['--scan', $this->discoveryCidr, '--json'], false);
+        $list = json_decode($result['output'], true);
+        if (!is_array($list)) {
+            $this->discoveryError = 'Printer discovery failed: ' . trim($result['output']);
+            return [];
+        }
+        $printers = [];
+        foreach ($list as $item) {
+            if (!is_array($item) || !isset($item['host']) || !is_string($item['host'])) {
+                continue;
+            }
+            $host = trim($item['host']);
+            if (!self::isPrivateHost($host)) {
+                continue;
+            }
+            $printers[] = [
+                'id' => 'net:' . $host,
+                'host' => $host,
+                'model' => isset($item['model']) && is_string($item['model']) ? $item['model'] : null,
+                'serial' => isset($item['serial']) && is_string($item['serial']) ? $item['serial'] : null,
+                'media_width_mm' => isset($item['media_width_mm']) && is_numeric($item['media_width_mm'])
+                    ? (int) round((float) $item['media_width_mm'])
+                    : null,
+                'ready' => !empty($item['ready']),
+                'kind' => 'network',
+                'usable' => true,
+            ];
+        }
+        return $printers;
+    }
+
+    /** Why the last discovery returned no printers. */
+    public function discoveryError(): string
+    {
+        return $this->discoveryError;
+    }
+
+    /** Only private IPv4 addresses from a scan may be selected ad hoc. */
+    private static function isPrivateHost(string $host): bool
+    {
+        if (!filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return false;
+        }
+        $long = ip2long($host);
+        if ($long === false) {
+            return false;
+        }
+        return ($long & 0xFF000000) === 0x0A000000
+            || ($long & 0xFFF00000) === 0xAC100000
+            || ($long & 0xFFFF0000) === 0xC0A80000
+            || ($long & 0xFFFF0000) === 0xA9FE0000;
     }
 
     /** @return array<string, mixed>|null */

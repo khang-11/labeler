@@ -57,7 +57,7 @@ command line:
   by host and USB printers by serial. Model and tape are detected; `model`/`tape_width` are
   overrides for unusual media.
 * Discovery: `ptouch --scan 192.168.8.0/24` finds Brother printers with an SNMP sweep;
-  `ptouch --list-connected` lists USB printers. A discovery button in the UI is a follow-up.
+  `ptouch --list-connected` lists USB printers. The printer details can run a discovery scan and select a found printer for the browser; `discovery_cidr` limits the scanned network.
 
 The backend needs Python 3.11+ and Pillow, so the "no runtime dependencies" decision in
 [ADR 0002](adr/0002-plain-php-no-build.md) is superseded in part by
