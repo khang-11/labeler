@@ -10,16 +10,23 @@ services:
     volumes:
       - ./data:/data                 # print log and fonts (put .ttf/.otf/.woff2 into ./data/fonts)
     environment:
-      # 1) printer on another computer running the printer agent (sudo sh install.sh --agent);
-      #    the agent prints both values when it is installed
-      LABELER_PRINTER_URL: "http://printer-pi:8631"
-      LABELER_PRINTER_TOKEN: "paste-the-token-of-the-agent"
-      # 2) or try it without a printer: comment out the two lines above and use
+      # 1) a network printer: ptouch detects model and tape over SNMP
+      LABELER_PRINTER_HOST: "192.168.8.235"
+      # more than one printer:
+      # LABELER_PRINTERS: '{"office":{"host":"192.168.8.235"},"desk":{"usb":true,"serial":"000F1Z401234"}}'
+      # LABELER_PRINTER: office
+      # LABELER_PRINTER_MODEL: P900W        # optional override
+      # LABELER_PRINTER_TAPE_WIDTH: "24"    # optional override
+      # LABELER_PRINTER_COMMUNITY: public
+      # 2) or a printer on another computer running the printer agent:
+      # LABELER_PRINTER_URL: "http://printer-pi:8631"
+      # LABELER_PRINTER_TOKEN: "paste-the-token-of-the-agent"
+      # 3) or try it without a printer:
       # LABELER_DEMO: "1"
       # Optional:
       # LABELER_ICON_API: ""         # switch off the icon search (or your own Iconify server)
       # LABELER_MAX_COPIES: "20"
-    # 3) or a printer plugged into this Docker host: remove LABELER_PRINTER_URL above and
+    # 4) or a printer plugged into this Docker host: remove the printer settings above and
     #    pass the USB bus; the group id must be the one owning the printer's device node
     #    (with deploy/99-labeler-ptouch.rules on the host: the host's "lp" group, usually 7)
     # devices:

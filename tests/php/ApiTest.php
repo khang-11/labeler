@@ -191,8 +191,6 @@ final class ApiTest extends TestCase
         $this->assertSame(400, $this->call('GET', 'status', '', '', [], ['serial' => '--info'])[0]);
         [$status] = $this->call('POST', 'print', $this->printBody(60, 128), 'application/json', [], ['serial' => 'B2']);
         $this->assertSame(200, $status, '128 px fit the 24 mm tape of the second printer');
-        $this->simulate(['version' => '1.7']);
-        $this->assertSame(['supported' => false, 'printers' => []], $this->call('GET', 'printers')[1]);
     }
 
     public function testAccessToken(): void

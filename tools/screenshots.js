@@ -21,7 +21,7 @@ const server = spawn('php', ['-S', `127.0.0.1:${PORT}`, '-t', 'public'], {
   stdio: 'ignore',
   env: {
     ...process.env,
-    LABELER_PTOUCH_BIN: resolve(root, 'tools/ptouch-sim/ptouch-print'),
+    LABELER_PTOUCH_BIN: resolve(root, 'tools/ptouch-sim/ptouch'),
     LABELER_DATA_DIR: resolve(run, 'data'),
     LABELER_FONTS_DIR: resolve(run, 'fonts'),
     PTSIM_STATE: resolve(run, 'state.json'),

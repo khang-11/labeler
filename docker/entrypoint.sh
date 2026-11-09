@@ -5,16 +5,18 @@ set -eu
 mkdir -p "${LABELER_FONTS_DIR:-/data/fonts}" 2>/dev/null || true
 
 if [ "${LABELER_DEMO:-0}" = 1 ]; then
-  export LABELER_PTOUCH_BIN=/app/tools/ptouch-sim/ptouch-print
+  export LABELER_PTOUCH_BIN=/app/tools/ptouch-sim/ptouch
   export PTSIM_OUT="${PTSIM_OUT:-/data/demo-printed}"
   echo "labeler: demo mode, printing to a simulated printer (labels are saved in $PTSIM_OUT)"
 elif [ -n "${LABELER_PRINTER_URL:-}" ]; then
   echo "labeler: printing through the printer agent at $LABELER_PRINTER_URL"
   [ -n "${LABELER_PRINTER_TOKEN:-}" ] || echo "labeler: warning: LABELER_PRINTER_TOKEN is empty; agents installed with install.sh --agent need it"
+elif [ -n "${LABELER_PRINTER_HOST:-}" ] || [ -n "${LABELER_PRINTERS:-}" ]; then
+  echo "labeler: printing on a network printer"
 elif [ -d /dev/bus/usb ]; then
   echo "labeler: printing on a printer attached to this host over USB"
 else
-  echo "labeler: warning: no printer configured: set LABELER_PRINTER_URL for a printer agent, pass /dev/bus/usb for a local printer, or LABELER_DEMO=1"
+  echo "labeler: warning: no printer configured: set LABELER_PRINTER_HOST or LABELER_PRINTERS for a network printer, pass /dev/bus/usb for a local printer, or LABELER_DEMO=1"
 fi
 if [ -n "${LABELER_TOKEN:-}" ]; then
   echo "labeler: API access token set: this container is a printer agent, the web page itself cannot print"

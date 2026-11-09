@@ -23,6 +23,6 @@ Without a printer the tape width can be chosen to design labels in advance.
 ## Printer details and print log
 
 The badge in the brand bar opens the printer details and the last print jobs with the exact
-ptouch-print command and its output.
+ptouch command and its output.
 
 ![Printer details](screenshots/details.png)

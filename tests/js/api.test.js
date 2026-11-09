@@ -1,7 +1,7 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  getStatus, getFonts, getLog, getPrinters, setSerial, fontUrl, printLabel, login, logout, getLabels, saveLabel, deleteLabel,
+  getStatus, getFonts, getLog, getPrinters, setPrinter, fontUrl, printLabel, login, logout, getLabels, saveLabel, deleteLabel,
 } from '../../public/js/api.js';
 
 let calls;
@@ -47,13 +47,13 @@ test('printLabel posts JSON', async () => {
 
 test('the chosen printer goes with every call', async () => {
   fake(() => new Response('{}', { status: 200 }));
-  setSerial('B 2');
+  setPrinter('B 2');
   await getPrinters();
   await printLabel('AAAA', {});
-  setSerial('');
+  setPrinter('');
   await getStatus();
-  assert.deepEqual(calls.map((c) => c.url), ['api.php?action=printers&serial=B%202', 'api.php?action=print&serial=B%202', 'api.php?action=status']);
-  setSerial(undefined);
+  assert.deepEqual(calls.map((c) => c.url), ['api.php?action=printers&printer=B%202', 'api.php?action=print&printer=B%202', 'api.php?action=status']);
+  setPrinter(undefined);
 });
 
 test('login, logout and saved labels post JSON', async () => {

@@ -3,18 +3,18 @@
 #   docker run --rm -p 8080:8080 -e LABELER_DEMO=1 labeler        # try it with a simulated printer
 # See docker-compose.yml and docs/DOCKER.md.
 
-# ptouch-print from the upstream sources, for a printer plugged into the Docker host
+# ptouch (Python) in a virtual environment, for the printer (USB or network).
 FROM debian:bookworm-slim AS ptouch
-ARG PTOUCH_REF=v1.9
+ARG PTOUCH_REF=v1.2.0
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      ca-certificates git cmake gcc make pkg-config gettext libgd-dev libusb-1.0-0-dev \
+      ca-certificates git python3 python3-venv python3-pil python3-setuptools \
  && rm -rf /var/lib/apt/lists/*
-# upstream is a small self-hosted server: try the clone up to three times
-RUN for i in 1 2 3; do git clone https://git.familie-radermacher.ch/linux/ptouch-print.git /src && break; rm -rf /src; sleep 10; done \
+RUN git clone https://github.com/khang-11/ptouch.git /src \
  && cd /src && git -c advice.detachedHead=false checkout "$PTOUCH_REF" \
- && cmake -S . -B build && cmake --build build -j"$(nproc)" \
- && install -m 755 build/ptouch-print /usr/local/bin/ptouch-print
+ && python3 -m venv --system-site-packages /opt/ptouch \
+ && /opt/ptouch/bin/pip install --no-cache-dir --no-deps . \
+ && /opt/ptouch/bin/pip install --no-cache-dir packbits pyusb
 
 FROM debian:bookworm-slim
 ARG VERSION=dev
@@ -24,18 +24,19 @@ LABEL org.opencontainers.image.title="Labeler" \
       org.opencontainers.image.licenses="MIT"
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      php-cli libgd3 libusb-1.0-0 ca-certificates \
+      php-cli libgd3 libusb-1.0-0 ca-certificates python3 python3-pil \
  && rm -rf /var/lib/apt/lists/* \
  && groupadd --gid 1000 labeler && useradd --uid 1000 --gid 1000 --no-create-home --shell /usr/sbin/nologin labeler \
  && mkdir -p /data && chown 1000:1000 /data
-COPY --from=ptouch /usr/local/bin/ptouch-print /usr/local/bin/ptouch-print
+COPY --from=ptouch /opt/ptouch /opt/ptouch
+RUN ln -s /opt/ptouch/bin/ptouch /usr/local/bin/ptouch
 COPY public /app/public
 COPY src /app/src
 COPY tools/ptouch-sim /app/tools/ptouch-sim
 COPY config.example.php /app/
 COPY docker/entrypoint.sh /usr/local/bin/labeler-entrypoint
 RUN sed -i "s/VERSION = '[^']*'/VERSION = '${VERSION}'/" /app/src/Config.php \
- && chmod 755 /usr/local/bin/labeler-entrypoint /app/tools/ptouch-sim/ptouch-print
+ && chmod 755 /usr/local/bin/labeler-entrypoint /app/tools/ptouch-sim/ptouch
 ENV LABELER_DATA_DIR=/data \
     LABELER_FONTS_DIR=/data/fonts \
     PORT=8080

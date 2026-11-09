@@ -1,6 +1,6 @@
 // Labeler user interface.
 import {
-  getStatus, getFonts, getLog, getPrinters, setSerial, fontUrl, printLabel, login, logout, getLabels, saveLabel, deleteLabel,
+  getStatus, getFonts, getLog, getPrinters, setPrinter, fontUrl, printLabel, login, logout, getLabels, saveLabel, deleteLabel,
 } from './api.js';
 import {
   BLOCK_NAMES, FONTS, TAPES, defaultLabel, newBlock, newId, normalizeLabel, pxToMm, tapePx,
@@ -22,7 +22,7 @@ const STORE_SAVED = 'labeler.saved';
 const STORE_TAPE = 'labeler.tape';
 const STORE_BATCH = 'labeler.batch';
 const STORE_HISTORY = 'labeler.history';
-const STORE_SERIAL = 'labeler.serial';
+const STORE_PRINTER = 'labeler.printer';
 const STORE_LANG = 'labeler.lang';
 const HISTORY_MAX = 20;
 
@@ -179,7 +179,7 @@ function updateFeatures() {
     input.disabled = !f[key];
     input.closest('label').title = f[key]
       ? (key === 'precut' ? 'Cuts the tape automatically; only printers with a cutter (e.g. PT-P700, PT-P750W, PT-P900)' : '')
-      : `needs ptouch-print ${min} or newer`;
+      : `needs ptouch ${min} or newer`;
     if (!f[key]) input.checked = false;
   }
   const max = (state.status && state.status.max_copies) || 50;
@@ -1024,10 +1024,10 @@ async function renderPrinterChoice() {
   const printers = res.ok ? res.data.printers || [] : [];
   choice.hidden = printers.length < 2;
   if (choice.hidden) return;
-  const current = load(STORE_SERIAL, '');
+  const current = load(STORE_PRINTER, load('labeler.serial', ''));
   $('#printer-select').innerHTML = printers.map((p) =>
-    `<option value="${esc(p.serial)}"${p.serial === current ? ' selected' : ''}${p.usable ? '' : ' disabled'}>${esc(p.model)} · ${esc(p.serial)}${p.usable ? '' : ' (not usable)'}</option>`).join('');
-  if (!printers.some((p) => p.serial === current)) $('#printer-select').selectedIndex = -1;
+    `<option value="${esc(p.id)}"${p.id === current ? ' selected' : ''}${p.usable ? '' : ' disabled'}>${esc(p.model || p.id)} · ${esc(p.serial || p.id)}${p.usable ? '' : ' (not usable)'}</option>`).join('');
+  if (!printers.some((p) => p.id === current)) $('#printer-select').selectedIndex = -1;
 }
 
 async function openDetails() {
@@ -1037,7 +1037,7 @@ async function openDetails() {
   const p = s && s.printer;
   const rows = [
     ['Labeler', s ? s.app_version : '?'],
-    ['ptouch-print', s && s.ptouch_version ? s.ptouch_version : 'not found'],
+    ['ptouch', s && s.ptouch_version ? s.ptouch_version : 'not found'],
     ['Printer agent', s && s.agent ? `${s.agent.url}${s.agent.reachable ? '' : ' (not reachable)'}` : 'none, this computer prints'],
     ['Printer', p && p.model ? p.model : 'none'],
     ['Serial', p && p.serial ? p.serial : '–'],
@@ -1049,7 +1049,7 @@ async function openDetails() {
   const res = await getLog();
   const entries = res.ok ? res.data.entries : [];
   $('#details-log').innerHTML = entries.length
-    ? entries.map((e) => `<li class="${e.code === 0 ? '' : 'failed'}"><div><time>${esc(new Date(e.time).toLocaleString())}</time> · exit ${e.code} · ${e.ms} ms</div><code>ptouch-print ${esc(e.args.join(' '))}</code><pre>${esc(e.output)}</pre></li>`).join('')
+    ? entries.map((e) => `<li class="${e.code === 0 ? '' : 'failed'}"><div><time>${esc(new Date(e.time).toLocaleString())}</time> · exit ${e.code} · ${e.ms} ms</div><code>ptouch ${esc(e.args.join(' '))}</code><pre>${esc(e.output)}</pre></li>`).join('')
     : `<li class="muted">${res.ok && !res.data.enabled ? 'The print log is off: the data folder is not writable.' : 'Nothing printed yet.'}</li>`;
   dialog.showModal();
 }
@@ -1138,10 +1138,10 @@ function init() {
     await logout();
     location.reload();
   });
-  setSerial(load(STORE_SERIAL, ''));
+  setPrinter(load(STORE_PRINTER, load('labeler.serial', '')));
   $('#printer-select').addEventListener('change', async (e) => {
-    store(STORE_SERIAL, e.target.value);
-    setSerial(e.target.value);
+    store(STORE_PRINTER, e.target.value);
+    setPrinter(e.target.value);
     await refreshStatus();
     $('#details').close();
     openDetails();

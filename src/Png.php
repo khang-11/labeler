@@ -7,7 +7,7 @@ namespace Labeler;
 use InvalidArgumentException;
 
 /**
- * Checks that uploaded bytes are a PNG that `ptouch-print --image` prints correctly:
+ * Checks that uploaded bytes are a PNG that `ptouch --image` prints correctly:
  * a palette image with at most two colours, not higher than the tape.
  */
 final class Png

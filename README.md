@@ -9,8 +9,8 @@ will print.
 
 ![The editor with a label of a logo, two lines of text and a QR code](docs/screenshots/editor.png)
 
-Labeler is a small web front end for [ptouch-print](https://git.familie-radermacher.ch/linux/ptouch-print.git)
-by Dominic Radermacher, which does the actual talking to the printer over USB. It is made for a
+Labeler is a small web front end for [ptouch](https://github.com/khang-11/ptouch)
+which does the actual talking to the printer over USB or the network. It is made for a
 Raspberry Pi Zero next to the printer: a few PHP files and static pages, no database, no build
 step. The label is drawn in your browser, so the Pi only passes it on. The interface can also run
 in Docker on a server, with only a small printer agent next to the printer.
@@ -19,9 +19,9 @@ in Docker on a server, with only a small printer agent next to the printer.
 > neither endorsed nor supported by them. "Brother" and "P-Touch" only say which printers it
 > works with.
 
-**Works with:** the P-Touch printers ptouch-print supports (`ptouch-print --list-supported`), for
-example PT-P700, PT-P750W, PT-H500, PT-D600, PT-P300BT and PT-P900W, with ptouch-print 1.5 or
-newer. Tape from 3.5 to 36 mm, 180 and 360 dpi.
+**Works with:** the P-Touch printers ptouch supports: PT-E550W, PT-P710BT, PT-P750W, PT-P900,
+PT-P900W, PT-P910BT and PT-P950NW. Tape from 3.5 to 36 mm, heat-shrink tube, 180 and 360 dpi.
+Needs Python 3.11 or newer for ptouch.
 
 ## Features
 
@@ -42,12 +42,12 @@ newer. Tape from 3.5 to 36 mm, 180 and 360 dpi.
 - **Rotation** of text, barcodes, images and icons by 90, 180 or 270 degrees, e.g. for folder
   spines and shelf edges.
 - **Layout**: margins, gap, minimum length with position, frame, cut marks, cable flags (content on both sides of a cable), mirrored for clear tape.
-- **Printing**: copies, chain printing and auto cut where the installed ptouch-print and the
+- **Printing**: copies, chain printing and auto cut where the installed ptouch and the
   printer support them; download the label as PNG.
-- **Several printers** on one computer (ptouch-print 1.9): pick one in the printer details.
+- **Several printers** on one computer or network: configure them in `printers` and pick one in the printer details.
 - **Printer status** with tape width and colour, clear messages for a missing printer, missing
   tape, open cover, cutter jam, overheating, weak batteries, P-Lite mode or missing USB permissions,
-  a check after every print job (ptouch-print itself does not notice a jam during printing), a hint
+  a check after every print job (ptouch itself does not notice a jam during printing), a hint
   when the printer switched itself off, and a log of the last print jobs.
 - **Templates** to start from: asset tag with numbered QR code, Wi-Fi guest access, cable label,
   folder spine, address, name tag, shelf label with barcode.
@@ -64,13 +64,14 @@ docker run --rm -p 8080:8080 -e LABELER_DEMO=1 ghcr.io/philippmundhenk/labeler
 ```
 
 opens a demo with a simulated printer at <http://localhost:8080/>. For real use, run the interface
-in Docker on your server with [`docker-compose.yml`](docker-compose.yml) and the printer on a small
-computer with the printer agent (below); or pass the USB bus when the printer hangs on the Docker
-host. Details: [docs/DOCKER.md](docs/DOCKER.md).
+in Docker on your server with [`docker-compose.yml`](docker-compose.yml) and set
+`LABELER_PRINTER_HOST` to the printer's address; model and tape are detected. A printer on another
+computer can also be reached through the printer agent (below), and a printer plugged into the
+Docker host can be passed through the USB bus. Details: [docs/DOCKER.md](docs/DOCKER.md).
 
 ## Quick start on a Raspberry Pi
 
-The install script sets up everything below in one go (packages, ptouch-print, Labeler, printer
+The install script sets up everything below in one go (packages, ptouch, Labeler, printer
 access, service) and updates an existing installation when run again:
 
 ```sh
@@ -81,9 +82,8 @@ sudo sh install.sh    # options: sh install.sh --help
 
 Or by hand:
 
-1. Install PHP (`sudo apt install php-cli`) and build ptouch-print from its sources, which takes a
-   few minutes even on a Pi Zero: [docs/INSTALL.md](docs/INSTALL.md#1-ptouch-print). Debian and
-   Raspberry Pi OS do not package it.
+1. Install PHP (`sudo apt install php-cli`) and ptouch in a virtual environment (Python 3.11+):
+   [docs/INSTALL.md](docs/INSTALL.md#1-ptouch).
 2. Download `labeler-<version>.zip` from the [releases page](https://github.com/PhilippMundhenk/labeler/releases)
    and unpack it to `/opt/labeler`.
 3. Allow the service to use the printer and start it:
@@ -123,9 +123,16 @@ set the environment variable (in `labeler.service`: `Environment=`).
 
 | Setting | Variable | Default | Purpose |
 | --- | --- | --- | --- |
-| `ptouch_bin` | `LABELER_PTOUCH_BIN` | `ptouch-print` | ptouch-print program, name or full path |
+| `ptouch_bin` | `LABELER_PTOUCH_BIN` | `ptouch` | ptouch program, name or full path |
+| `printers` | `LABELER_PRINTERS` | first USB printer | JSON map of printer id to `{host}` or `{usb: true, serial}` |
+| `printer` | `LABELER_PRINTER` | first printer | Default printer id |
+| `printer_host` | `LABELER_PRINTER_HOST` | empty | Shorthand for one network printer |
+| `printer_model` | `LABELER_PRINTER_MODEL` | empty | Optional model override (network/USB) |
+| `printer_tape_width` | `LABELER_PRINTER_TAPE_WIDTH` | empty | Optional tape width override in mm |
+| `printer_community` | `LABELER_PRINTER_COMMUNITY` | `public` | SNMP read community |
+| `discovery_cidr` | `LABELER_DISCOVERY_CIDR` | empty | Network for discovery (default: local /24) |
 | `timeout` | `LABELER_TIMEOUT` | `60` | Seconds a print job may take |
-| `serial` | `LABELER_SERIAL` | empty | USB serial of the printer to use when several are attached (ptouch-print 1.9) |
+| `serial` | `LABELER_SERIAL` | empty | Legacy shorthand for the default USB printer serial |
 | `data_dir` | `LABELER_DATA_DIR` | `./data` | Writable folder for the print log; empty switches the log off |
 | `fonts_dir` | `LABELER_FONTS_DIR` | `./fonts` | `.ttf`, `.otf`, `.woff`, `.woff2` files for the font list |
 | `max_upload_bytes` | `LABELER_MAX_UPLOAD_BYTES` | `2000000` | Largest label image |
@@ -150,13 +157,13 @@ Dark mode and more: [docs/screenshots.md](docs/screenshots.md).
 
 ## Documentation
 
-- [docs/INSTALL.md](docs/INSTALL.md): installing ptouch-print and Labeler, the printer agent, web
+- [docs/INSTALL.md](docs/INSTALL.md): installing ptouch and Labeler, the printer agent, web
   servers, updates, troubleshooting.
 - [docs/DOCKER.md](docs/DOCKER.md): the container image, demo mode, printer agent or USB.
-- [docs/DESIGN.md](docs/DESIGN.md): how it works, ptouch-print versions, and the
+- [docs/DESIGN.md](docs/DESIGN.md): how it works, the ptouch backend, and the
   [architecture decision records](docs/adr/README.md).
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): tests (simulated printer, browser tests, contract
-  test against the real ptouch-print), coverage, releases.
+  test against the real ptouch), coverage, releases.
 - [docs/BRANDING.md](docs/BRANDING.md): name, colours and components.
 - [CHANGELOG.md](CHANGELOG.md): what changed in each release.
 

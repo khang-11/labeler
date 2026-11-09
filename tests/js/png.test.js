@@ -25,7 +25,7 @@ test('packRows writes a filter byte and MSB-first bits per row', () => {
   assert.deepEqual([...raw], [0, 0x80, 0, 0, 0x01, 0x80, 0, 0, 0x08]);
 });
 
-test('encodePng produces a 1-bit palette PNG that ptouch-print accepts', async () => {
+test('encodePng produces a 1-bit palette PNG that ptouch accepts', async () => {
   const png = await encodePng(sample(), (b) => deflateSync(b), 180);
   const p = parsePng(png);
   assert.deepEqual([...p.signature], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);

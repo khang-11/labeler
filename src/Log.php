@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Labeler;
 
 /**
- * The last ptouch-print runs (arguments, exit code, output) as a JSON file, newest first.
+ * The last ptouch runs (arguments, exit code, output) as a JSON file, newest first.
  * Without a writable folder the log is silently off.
  */
 final class Log

@@ -1,4 +1,4 @@
-// Browser tests: PHP's built-in server with the ptouch-print simulator.
+// Browser tests: PHP's built-in server with the ptouch simulator.
 import { defineConfig } from '@playwright/test';
 import { resolve } from 'node:path';
 
@@ -27,7 +27,7 @@ export default defineConfig({
     url: `http://127.0.0.1:${PORT}/api.php?action=health`,
     reuseExistingServer: false,
     env: {
-      LABELER_PTOUCH_BIN: resolve(root, 'tools/ptouch-sim/ptouch-print'),
+      LABELER_PTOUCH_BIN: resolve(root, 'tools/ptouch-sim/ptouch'),
       LABELER_DATA_DIR: resolve(RUN, 'data'),
       LABELER_FONTS_DIR: resolve(RUN, 'fonts'),
       LABELER_MAX_COPIES: '10',
@@ -40,7 +40,7 @@ export default defineConfig({
     url: `http://127.0.0.1:${PASSWORD_PORT}/api.php?action=health`,
     reuseExistingServer: false,
     env: {
-      LABELER_PTOUCH_BIN: resolve(root, 'tools/ptouch-sim/ptouch-print'),
+      LABELER_PTOUCH_BIN: resolve(root, 'tools/ptouch-sim/ptouch'),
       LABELER_DATA_DIR: resolve(RUN, 'data-password'),
       LABELER_PASSWORD: 'correct horse',
       PTSIM_STATE: resolve(RUN, 'sim-state.json'),

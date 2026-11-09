@@ -30,7 +30,7 @@ test('the printer status is shown and the default label prints', async ({ page }
   expect([...bm.chunks.IHDR.subarray(8, 10)]).toEqual([1, 3]);
 });
 
-test('two lines, the case that broke with ptouch-print 1.7 (#1)', async ({ page }) => {
+test('two lines', async ({ page }) => {
   await ready(page);
   await setText(page, 'Line one\nLine two');
   const two = await previewSize(page);
@@ -48,7 +48,7 @@ test('label text never reaches a shell (#2)', async ({ page }) => {
   await setText(page, '$(touch /tmp/labeler-pwned) "; rm -rf / #');
   await page.locator('#print').click();
   await expect(page.locator('.toast.ok')).toBeVisible();
-  expect(printed()[0].parts).toEqual([{ image: expect.stringMatching(/x76$/) }]);
+  expect(printed()[0]).toMatchObject({ height_px: 76 });
 });
 
 test('a printed QR code and barcode can be scanned', async ({ page }) => {
@@ -71,7 +71,7 @@ test('a printed QR code and barcode can be scanned', async ({ page }) => {
   expect(decode(printedBitmap(printed()[1]), 'code128', 2)).toBe('INV-2026-0042');
 });
 
-test('copies, chain and precut with ptouch-print 1.9', async ({ page }) => {
+test('copies, chain and precut', async ({ page }) => {
   await ready(page);
   await page.locator('#copies').fill('3');
   await page.locator('summary').click();
@@ -86,23 +86,21 @@ test('copies, chain and precut with ptouch-print 1.9', async ({ page }) => {
   expect(records[0]).toMatchObject({ copies: 3, chain: true, precut: true, version: '1.9' });
 });
 
-test('ptouch-print 1.5: options it lacks are switched off, copies still work', async ({ page }) => {
-  setSim({ version: '1.5' });
+test('chain and precut are available, copies still work', async ({ page }) => {
   await ready(page);
-  await expect(page.locator('#chain')).toBeDisabled();
-  await expect(page.locator('#precut')).toBeDisabled();
-  await expect(page.locator('#precut').locator('..')).toHaveAttribute('title', 'needs ptouch-print 1.8 or newer');
+  await expect(page.locator('#chain')).toBeEnabled();
+  await expect(page.locator('#precut')).toBeEnabled();
   await page.locator('#copies').fill('2');
   await page.locator('#print').click();
   await expect(page.locator('.toast.ok')).toContainText('2 labels printed');
-  expect(printed().map((r) => r.copies)).toEqual([1, 1]);
+  expect(printed().map((r) => r.copies)).toEqual([2, 2]);
 });
 
-test('a failing print shows the output of ptouch-print', async ({ page }) => {
+test('a failing print shows the output of ptouch', async ({ page }) => {
   await ready(page);
   setSim({ fail: 'print' });
   await page.locator('#print').click();
-  await expect(page.locator('.toast.bad')).toContainText('ptouch-print reported a problem');
+  await expect(page.locator('.toast.bad')).toContainText('ptouch reported a problem');
   await expect(page.locator('.toast.bad pre')).toContainText('LIBUSB_ERROR_PIPE');
   await page.locator('.toast.bad').click();
   await expect(page.locator('.toast.bad')).toHaveCount(0);
@@ -146,7 +144,7 @@ test('the details dialog shows the printer and the print log', async ({ page }) 
   await page.locator('#print').click();
   await expect(page.locator('.toast.ok')).toBeVisible();
   await page.locator('#status').click();
-  await expect(page.locator('#details-log li').first()).toContainText('ptouch-print --image label.png');
+  await expect(page.locator('#details-log li').first()).toContainText('--image label.png');
   await page.locator('#details-refresh').click();
   await expect(page.locator('#details')).toBeVisible();
   await expect(page.locator('#details-info')).toContainText('ready');
@@ -160,7 +158,7 @@ test('choosing one of several printers (#28)', async ({ page }) => {
   await page.locator('#status').click();
   await expect(page.locator('#printer-choice')).toBeVisible();
   await expect(page.locator('#printer-select option')).toHaveText(['PT-P700 · 000F1Z401234', 'PT-P750W · B2', 'PT-P700 · C3 (not usable)']);
-  await page.locator('#printer-select').selectOption('B2');
+  await page.locator('#printer-select').selectOption('usb:B2');
   await expect(page.locator('#status-text')).toHaveText('PT-P750W · 24 mm');
   await page.locator('#details-close').click();
   await page.locator('#print').click();

@@ -113,7 +113,7 @@ final class AgentTest extends TestCase
         $this->assertSame(2, $body['copies']);
         $this->assertSame($before + 2, self::printedCount());
         [, $log] = self::json($this->ui()->handle('GET', ['action' => 'log'], '', ''));
-        $this->assertSame(['--copies', '2', '--image', 'label.png'], $log['entries'][0]['args']);
+        $this->assertSame(['--usb', '--copies', '2', '--full-cut', '--no-margin', '--image', 'label.png'], $log['entries'][0]['args']);
     }
 
     public function testAgentErrorsArePassedOn(): void

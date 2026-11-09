@@ -1,6 +1,6 @@
 // The label model: a row of blocks plus layout settings, and the maths around it.
 
-/** Tape width in mm => printable pixels at [180 dpi, 360 dpi] (from ptouch-print's libptouch). */
+/** Tape width in mm => printable pixels at [180 dpi, 360 dpi] (from the ptouch pin configurations). */
 export const TAPES = {
   4: [24, 48], 6: [32, 64], 9: [52, 106], 12: [76, 150],
   18: [120, 234], 21: [124, 248], 24: [128, 320], 36: [192, 454],

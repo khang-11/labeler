@@ -19,7 +19,7 @@ export const DE = {
   'Chain printing (no feed and cut after the label)': 'Kettendruck (kein Vorschub und Schnitt nach dem Etikett)',
   'Auto cut': 'Automatisch schneiden',
   'Cuts the tape automatically; only printers with a cutter (e.g. PT-P700, PT-P750W, PT-P900)': 'Schneidet das Band automatisch; nur Drucker mit Schneidwerk (z. B. PT-P700, PT-P750W, PT-P900)',
-  'needs ptouch-print {v} or newer': 'braucht ptouch-print {v} oder neuer',
+  'needs ptouch {v} or newer': 'braucht ptouch {v} oder neuer',
   'Next number for {n}': 'Nächste Nummer für {n}',
   'Download PNG': 'PNG herunterladen',
   'No printer ready': 'Kein Drucker bereit',
@@ -43,9 +43,13 @@ export const DE = {
   'unexpected answer from the server (HTTP {code})': 'unerwartete Antwort vom Server (HTTP {code})',
 
   // server messages
-  'ptouch-print was not found. Install it or set ptouch_bin in config.php.': 'ptouch-print wurde nicht gefunden. Installieren oder ptouch_bin in config.php setzen.',
+  'ptouch was not found. Install it or set ptouch_bin in config.php.': 'ptouch wurde nicht gefunden. Installieren oder ptouch_bin in config.php setzen.',
   'The printer is in P-Lite mode. Set the mode switch to E.': 'Der Drucker ist im P-Lite-Modus. Den Modusschalter auf E stellen.',
   'This printer model is not supported by ptouch-print.': 'Dieses Druckermodell wird von ptouch-print nicht unterstützt.',
+  'This printer model is not supported.': 'Dieses Druckermodell wird nicht unterstützt.',
+  'No printer found. Check the connection and that the printer is switched on.': 'Kein Drucker gefunden. Verbindung prüfen und den Drucker einschalten.',
+  'No printer configured. Set printers or printer_host in config.php.': 'Kein Drucker eingerichtet. printers oder printer_host in config.php setzen.',
+  'The printer is not ready.': 'Der Drucker ist nicht bereit.',
   'A printer is attached, but the web server may not use it. Install the udev rule (see docs/INSTALL.md).': 'Ein Drucker ist angeschlossen, aber der Webserver darf ihn nicht benutzen. Die udev-Regel installieren (siehe docs/INSTALL.md).',
   'No printer found. Check the USB cable, switch the printer on and set the mode switch to E.': 'Kein Drucker gefunden. USB-Kabel prüfen, den Drucker einschalten und den Modusschalter auf E stellen.',
   'Unexpected answer from ptouch-print.': 'Unerwartete Antwort von ptouch-print.',
@@ -60,7 +64,7 @@ export const DE = {
   'The printer is overheated: let it cool down.': 'Der Drucker ist überhitzt: abkühlen lassen.',
   'The printer reports error {code}.': 'Der Drucker meldet Fehler {code}.',
   'After printing, the printer reports: {message}': 'Nach dem Druck meldet der Drucker: {message}',
-  'ptouch-print reported a problem': 'ptouch-print hat ein Problem gemeldet',
+  'ptouch reported a problem': 'ptouch hat ein Problem gemeldet',
   'The printer agent refused the access token. Set printer_token to the token of the agent.': 'Der Druckeragent hat den Zugriffsschlüssel abgelehnt. printer_token auf den Schlüssel des Agenten setzen.',
   'The printer agent at {url} cannot be reached: {why}.': 'Der Druckeragent unter {url} ist nicht erreichbar: {why}.',
   'The printer agent answered HTTP {code}: {why}.': 'Der Druckeragent antwortete mit HTTP {code}: {why}.',
@@ -305,7 +309,7 @@ export const DE = {
     'Labeler ist ein unabhängiges Open-Source-Projekt. Es steht in keiner Verbindung zu Brother Industries und wird von Brother weder empfohlen noch unterstützt; „Brother“ und „P-Touch“ sagen nur, mit welchen Druckern es funktioniert.',
 
   // names that stay the same
-  'Labeler': 'Labeler', 'ptouch-print': 'ptouch-print', 'Code 128': 'Code 128', 'Code 39': 'Code 39',
+  'Labeler': 'Labeler', 'ptouch': 'ptouch', 'Code 128': 'Code 128', 'Code 39': 'Code 39',
 
   // tape and ink colours
   'White': 'Weiß', 'Black': 'Schwarz', 'Clear': 'Klar', 'Red': 'Rot', 'Blue': 'Blau', 'Yellow': 'Gelb',
