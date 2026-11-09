@@ -70,4 +70,4 @@ All `LABELER_*` variables from the [README](../README.md#configuration) work. In
 | `LABELER_PASSWORD` | empty | Password for the interface (plain or a `password_hash()` hash) |
 
 The image is built for amd64, arm64 and arm/v7. Build it yourself with `docker build -t labeler .`
-(`--build-arg PTOUCH_REF=v1.2.0` for another ptouch version).
+(`--build-arg PTOUCH_REF=v1.2.1` for another ptouch version).

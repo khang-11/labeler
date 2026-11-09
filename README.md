@@ -130,6 +130,7 @@ set the environment variable (in `labeler.service`: `Environment=`).
 | `printer_model` | `LABELER_PRINTER_MODEL` | empty | Optional model override (network/USB) |
 | `printer_tape_width` | `LABELER_PRINTER_TAPE_WIDTH` | empty | Optional tape width override in mm |
 | `printer_community` | `LABELER_PRINTER_COMMUNITY` | `public` | SNMP read community |
+| `vertical_offset` | `LABELER_VERTICAL_OFFSET` | automatic | Pixels to shift the print area down; empty lets ptouch centre it |
 | `discovery_cidr` | `LABELER_DISCOVERY_CIDR` | empty | Network for discovery (default: local /24) |
 | `timeout` | `LABELER_TIMEOUT` | `60` | Seconds a print job may take |
 | `serial` | `LABELER_SERIAL` | empty | Legacy shorthand for the default USB printer serial |
