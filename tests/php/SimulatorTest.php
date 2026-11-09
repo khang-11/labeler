@@ -147,4 +147,99 @@ final class SimulatorTest extends TestCase
         $this->assertArrayNotHasKey('mode', $state);
         $this->assertArrayHasKey('tape_mm', Simulator::defaults());
     }
+
+    public function testStateFileOverridesTheEnvironment(): void
+    {
+        $state = $this->tmp . '/state.json';
+        file_put_contents($state, '{"tape_mm": 9, "printer": "PT-P750W"}');
+        $loaded = Simulator::stateFromEnv(['PTSIM_STATE' => $state, 'PTSIM_TAPE_MM' => '24']);
+        $this->assertSame(9, $loaded['tape_mm']);
+        $this->assertSame('PT-P750W', $loaded['printer']);
+    }
+
+    public function testArgumentForms(): void
+    {
+        $file = $this->tmp . '/label.png';
+        file_put_contents($file, self::labelPng(60, 76));
+        $this->assertSame(0, $this->sim(['--image=' . $file, '--copies=2'], ['tape_mm' => 12])['code']);
+        $this->assertCount(2, $this->printed());
+        $this->assertSame(2, $this->sim(['stray'])['code']);
+        $this->assertSame(0, $this->sim(['--'])['code']);
+        $this->assertSame(0, $this->sim(['--copies', '2'])['code']);
+    }
+
+    public function testShortPrinterNameAndHumanStatus(): void
+    {
+        $status = $this->sim(['--status', '--json', '--printer', 'P750W']);
+        $this->assertSame('PT-P750W', json_decode($status['stdout'], true)['model']);
+        $human = $this->sim(['--status']);
+        $this->assertStringContainsString('model = PT-P700', $human['stdout']);
+    }
+
+    public function testSerialSelection(): void
+    {
+        $others = '[{"printer": "PT-P750W", "serial": "B2", "tape_mm": 24}]';
+        $status = json_decode($this->sim(['--status', '--json', '--serial', 'B2'], ['others' => $others])['stdout'], true);
+        $this->assertSame('PT-P750W', $status['model']);
+        $missing = json_decode($this->sim(['--status', '--json', '--serial', 'NOPE'], ['others' => $others])['stdout'], true);
+        $this->assertFalse($missing['connected']);
+    }
+
+    public function testUnsupportedMode(): void
+    {
+        $status = json_decode($this->sim(['--status', '--json'], ['mode' => 'unsupported'])['stdout'], true);
+        $this->assertStringContainsString('not supported', $status['message']);
+    }
+
+    public function testHumanListConnected(): void
+    {
+        $r = $this->sim(['--list-connected']);
+        $this->assertStringContainsString('PT-P700', $r['stdout']);
+    }
+
+    public function testDelayAndNoOutputFolder(): void
+    {
+        $file = $this->tmp . '/label.png';
+        file_put_contents($file, self::labelPng(60, 76));
+        $sim = new Simulator(['out' => '', 'delay_ms' => 1], '');
+        $this->assertSame(0, $sim->run(['--image', $file])['code']);
+    }
+
+    public function testPngFiltersAndBlank(): void
+    {
+        $plte = "\xff\xff\xff\0\0\0";
+        $ihdr = pack('NNCCCCC', 8, 1, 1, 3, 0, 0, 0);
+        for ($filter = 0; $filter <= 4; $filter++) {
+            $file = $this->tmp . '/filter-' . $filter . '.png';
+            file_put_contents($file, self::pngChunks($ihdr, $plte, chr($filter) . "\xaa"));
+            $png = \Labeler\Sim\Png::read($file);
+            $this->assertNotNull($png, 'filter ' . $filter);
+            $this->assertTrue($png['palette']);
+        }
+        $blank = $this->tmp . '/blank.png';
+        file_put_contents($blank, \Labeler\Sim\Png::blank(8, 1));
+        $this->assertSame(0, \Labeler\Sim\Png::read($blank)['black']);
+    }
+
+    public function testPngRejectsWrongImages(): void
+    {
+        $file = $this->tmp . '/truecolor.png';
+        file_put_contents($file, self::pngChunks(pack('NNCCCCC', 1, 1, 8, 2, 0, 0, 0), null, "\0\0\0\0"));
+        $this->assertFalse(\Labeler\Sim\Png::read($file)['palette']);
+
+        $file = $this->tmp . '/no-ihdr.png';
+        file_put_contents($file, "\x89PNG\r\n\x1a\n");
+        $this->assertNull(\Labeler\Sim\Png::read($file));
+
+        $file = $this->tmp . '/bad-idat.png';
+        $chunk = static function (string $type, string $data): string {
+            return pack('N', strlen($data)) . $type . $data . pack('N', crc32($type . $data));
+        };
+        file_put_contents(
+            $file,
+            "\x89PNG\r\n\x1a\n" . $chunk('IHDR', pack('NNCCCCC', 8, 1, 1, 3, 0, 0, 0))
+            . $chunk('PLTE', "\xff\xff\xff\0\0\0") . $chunk('IDAT', 'not gzip') . $chunk('IEND', '')
+        );
+        $this->assertNull(\Labeler\Sim\Png::read($file));
+    }
 }

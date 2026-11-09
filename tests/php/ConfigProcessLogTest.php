@@ -72,6 +72,31 @@ final class ConfigProcessLogTest extends TestCase
         $this->assertSame(['ok'], array_keys($config->get('printers')));
     }
 
+    public function testBrokenPrintersJsonStillAllowsTheShorthands(): void
+    {
+        $host = Config::load($this->tmp . '/empty', null, [
+            'LABELER_PRINTERS' => 'not json',
+            'LABELER_PRINTER_HOST' => '192.0.2.10',
+        ]);
+        $this->assertSame('192.0.2.10', $host->get('printers')['default']['host']);
+
+        $usb = Config::load($this->tmp . '/empty', null, [
+            'LABELER_PRINTERS' => 'not json',
+            'LABELER_SERIAL' => 'S1',
+        ]);
+        $this->assertSame('S1', $usb->get('printers')['default']['serial']);
+
+        $none = Config::load($this->tmp . '/empty', null, ['LABELER_PRINTERS' => '[]']);
+        $this->assertTrue($none->get('printers')['default']['usb']);
+    }
+
+    public function testPrinterFallsBackToTheFirstEntry(): void
+    {
+        $file = $this->tmp . '/config.php';
+        file_put_contents($file, "<?php return ['printers' => ['office' => ['host' => '192.0.2.1']], 'printer' => 'missing'];");
+        $this->assertSame('office', Config::load($this->tmp, null, [])->get('printer'));
+    }
+
     public function testConfigFileNotReturningAnArrayIsIgnored(): void
     {
         file_put_contents($this->tmp . '/config.php', '<?php // nothing');

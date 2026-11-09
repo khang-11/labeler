@@ -292,19 +292,20 @@ final class Ptouch
             ? $data['model']
             : ($printer['model'] !== '' ? $printer['model'] : null);
         $message = isset($data['message']) && is_string($data['message']) ? trim($data['message']) : '';
-        if (!$connected && $message === '') {
-            $message = 'No printer found. Check the connection and that the printer is switched on.';
+        if (!$connected) {
+            if ($code === 127) {
+                $message = 'ptouch was not found. Install it or set ptouch_bin in config.php.';
+            } elseif ($message === '' && trim($output) !== '') {
+                $message = trim((string) preg_replace('/^Error:\s*/i', '', strtok($output, "\n") ?: $output));
+            } elseif ($message === '') {
+                $message = 'No printer found. Check the connection and that the printer is switched on.';
+            }
         } elseif ($errors !== []) {
             $message = implode(' ', $errors);
         } elseif ($width === null || $width === 0) {
             $message = 'No tape cassette inserted.';
         } elseif (empty($data['ready']) && $message === '') {
             $message = 'The printer is not ready.';
-        }
-        if (!$connected && $code === 127) {
-            $message = 'ptouch was not found. Install it or set ptouch_bin in config.php.';
-        } elseif (!$connected && $message === '' && $output !== '') {
-            $message = trim((string) preg_replace('/^Error:\s*/i', '', strtok($output, "\n") ?: $output));
         }
 
         return [

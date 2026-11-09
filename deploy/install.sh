@@ -84,6 +84,7 @@ if [ "$SKIP_PTOUCH" = 0 ]; then
   python3 -m venv --system-site-packages /opt/ptouch
   /opt/ptouch/bin/pip install -q --no-cache-dir --no-deps "$work/ptouch"
   /opt/ptouch/bin/pip install -q --no-cache-dir packbits pyusb
+  chmod -R u=rwX,go=rX /opt/ptouch
   ln -sf /opt/ptouch/bin/ptouch /usr/local/bin/ptouch
 fi
 command -v ptouch >/dev/null || die "ptouch is not installed; run without --skip-ptouch"

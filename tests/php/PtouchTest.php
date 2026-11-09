@@ -238,6 +238,94 @@ final class PtouchTest extends TestCase
         $this->assertSame('192.0.2.1', $printers[0]['host']);
     }
 
+    public function testWithPrinterUsbPrefixAndArbitrarySerial(): void
+    {
+        $printers = [
+            'one' => self::usbPrinter(),
+            'two' => ['id' => 'two', 'host' => '', 'usb' => true, 'serial' => 'B2', 'model' => '', 'community' => 'public', 'tape_width' => 0.0],
+        ];
+        $printer = $this->withPrinters($printers, 'one');
+        $this->assertSame('two', $printer->withPrinter('usb:B2')->currentId());
+        $this->assertSame('__selected', $printer->withPrinter('other')->currentId());
+    }
+
+    public function testParseStatusBranches(): void
+    {
+        $method = new \ReflectionMethod(Ptouch::class, 'parseStatus');
+        $method->setAccessible(true);
+        $config = self::networkPrinter('192.0.2.1');
+        $notConnected = $method->invoke(null, ['connected' => false], 1, '', $config);
+        $this->assertStringContainsString('No printer found', $notConnected['message']);
+        $notReady = $method->invoke(
+            null,
+            ['connected' => true, 'ready' => false, 'media_width_mm' => 12, 'media_type' => 1],
+            0,
+            '',
+            $config
+        );
+        $this->assertSame('The printer is not ready.', $notReady['message']);
+        $missing = $method->invoke(null, ['connected' => false], 127, '', $config);
+        $this->assertStringContainsString('ptouch was not found', $missing['message']);
+        $fromOutput = $method->invoke(null, ['connected' => false], 1, "Error: boom
+more
+", $config);
+        $this->assertSame('boom', $fromOutput['message']);
+        $odd = $method->invoke(
+            null,
+            [
+                'connected' => true, 'ready' => true, 'model' => null, 'serial' => null,
+                'media_width_mm' => 'x', 'media_type' => 'x', 'dpi' => 'x',
+                'max_px' => 'x', 'tape_px' => 'x', 'error_code' => 'x',
+                'tape_color' => null, 'text_color' => null,
+            ],
+            0,
+            '',
+            $config
+        );
+        $this->assertNull($odd['media_width_mm']);
+        $this->assertSame(180, $odd['dpi']);
+        $this->assertNull($odd['max_px']);
+        $this->assertNull($odd['tape_px']);
+        $this->assertSame(0, $odd['error_code']);
+        $this->assertNull($odd['tape_color']);
+        $this->assertNull($odd['model']);
+    }
+
+    public function testParseErrorBranches(): void
+    {
+        $method = new \ReflectionMethod(Ptouch::class, 'parseError');
+        $method->setAccessible(true);
+        $config = self::networkPrinter('192.0.2.1', 'P900W');
+        $missing = $method->invoke(null, 127, 'whatever', $config);
+        $this->assertStringContainsString('ptouch was not found', $missing['message']);
+        $this->assertSame('ptouch did not return a status.', $method->invoke(null, 1, '', $config)['message']);
+        $this->assertSame('boom', $method->invoke(null, 1, "Error: boom
+", $config)['message']);
+    }
+
+    public function testColorRejectsNonNumericCodes(): void
+    {
+        $method = new \ReflectionMethod(Ptouch::class, 'color');
+        $method->setAccessible(true);
+        $this->assertNull($method->invoke(null, [], null));
+        $this->assertNull($method->invoke(null, [], 'abc'));
+    }
+
+    public function testUsbPrintersWithOddOutput(): void
+    {
+        $bad = $this->tmp . '/bad-ptouch';
+        file_put_contents($bad, "#!/bin/sh
+printf 'not json'");
+        chmod($bad, 0755);
+        $this->assertSame([], $this->withPrinters([], '', $bad)->printers());
+
+        $scalar = $this->tmp . '/scalar-ptouch';
+        file_put_contents($scalar, "#!/bin/sh
+printf '{\"bad\": 1}'");
+        chmod($scalar, 0755);
+        $this->assertSame([], $this->withPrinters([], '', $scalar)->printers());
+    }
+
     public function testDecodeErrors(): void
     {
         $this->assertSame([], Ptouch::decodeErrors(0));
