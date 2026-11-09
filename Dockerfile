@@ -5,7 +5,7 @@
 
 # ptouch (Python) in a virtual environment, for the printer (USB or network).
 FROM debian:bookworm-slim AS ptouch
-ARG PTOUCH_REF=v1.2.0
+ARG PTOUCH_REF=v1.2.1
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       ca-certificates git python3 python3-venv python3-pil python3-setuptools \

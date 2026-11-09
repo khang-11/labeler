@@ -130,7 +130,7 @@ final class Simulator
             'no_margin' => false, 'host' => null, 'usb' => false, 'serial' => null,
             'printer' => null, 'tape_width' => 0.0, 'list_connected' => false,
         ];
-        $valueOptions = ['image', 'copies', 'host', 'serial', 'printer', 'tape-width', 'snmp-community'];
+        $valueOptions = ['image', 'copies', 'host', 'serial', 'printer', 'tape-width', 'vertical-offset', 'snmp-community'];
         $flagOptions = ['version', 'status', 'json', 'chain', 'precut', 'full-cut', 'no-margin',
             'usb', 'list-connected', 'high-resolution'];
         $count = count($argv);
@@ -161,7 +161,7 @@ final class Simulator
                     $args['copies'] = max(1, (int) $value);
                 } elseif ($name === 'tape-width') {
                     $args['tape_width'] = (float) $value;
-                } elseif ($name === 'snmp-community') {
+                } elseif ($name === 'snmp-community' || $name === 'vertical-offset') {
                     // accepted, not simulated
                 } else {
                     $args[$name] = $value;

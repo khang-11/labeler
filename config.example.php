@@ -33,6 +33,10 @@ return [
     // SNMP read community for network printers and scans.
     'printer_community' => 'public',
 
+    // Optional vertical offset in pixels for printing. Leave this out to let
+    // ptouch centre the printable area on the tape automatically.
+    // 'vertical_offset' => 0,
+
     // Optional network for discovery (a follow-up UI); empty uses the local /24.
     'discovery_cidr' => '',
 

@@ -53,6 +53,7 @@ final class Ptouch
     /** @var array<string, array<string, mixed>> */
     private array $printers;
     private string $current;
+    private ?int $verticalOffset;
     private ?Log $log;
     private ?string $version = null;
 
@@ -64,13 +65,15 @@ final class Ptouch
         array $printers,
         string $defaultPrinter,
         int $timeout = 60,
-        ?Log $log = null
+        ?Log $log = null,
+        ?int $verticalOffset = null
     ) {
         $this->bin = $bin;
         $this->printers = $printers;
         $this->current = isset($printers[$defaultPrinter]) ? $defaultPrinter : (string) (array_key_first($printers) ?? '');
         $this->timeout = $timeout;
         $this->log = $log;
+        $this->verticalOffset = $verticalOffset;
     }
 
     public static function fromConfig(Config $config, ?Log $log = null): self
@@ -80,7 +83,8 @@ final class Ptouch
             (array) $config->get('printers'),
             (string) $config->get('printer'),
             (int) $config->get('timeout'),
-            $log
+            $log,
+            is_numeric($config->get('vertical_offset')) ? (int) $config->get('vertical_offset') : null
         );
     }
 
@@ -228,6 +232,10 @@ final class Ptouch
         }
         // The browser already draws the label's margins into the PNG.
         $args[] = '--no-margin';
+        if ($this->verticalOffset !== null) {
+            $args[] = '--vertical-offset';
+            $args[] = (string) $this->verticalOffset;
+        }
         $args[] = '--image';
         $args[] = $png;
 

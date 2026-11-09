@@ -24,7 +24,7 @@ set -eu
 REPO=PhilippMundhenk/labeler
 VERSION=latest
 ZIP=
-PTOUCH_REF=v1.2.0
+PTOUCH_REF=v1.2.1
 SKIP_PTOUCH=0
 PORT=
 DIR=

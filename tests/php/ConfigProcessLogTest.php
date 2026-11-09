@@ -26,6 +26,8 @@ final class ConfigProcessLogTest extends TestCase
         $this->assertSame(7, $config->get('timeout'));
         $this->assertSame('/opt/pt', $config->get('ptouch_bin'));
         $this->assertSame('A1', $config->get('serial'));
+        $this->assertNull($config->get('vertical_offset'));
+        $this->assertSame(19, Config::load($this->tmp . '/empty', null, ['LABELER_VERTICAL_OFFSET' => '19'])->get('vertical_offset'));
         $this->assertSame('default', $config->get('printer'));
         $this->assertSame('A1', $config->get('printers')['default']['serial']);
         $this->assertSame('', $config->get('printer_url'));

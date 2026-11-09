@@ -176,7 +176,8 @@ final class PtouchTest extends TestCase
             ['default' => self::networkPrinter('192.0.2.1', 'P900W', 24.0)],
             'default',
             20,
-            $log
+            $log,
+            19
         );
         $result = $printer->printImage($file);
         $this->assertTrue($result['ok'], $result['output']);
@@ -184,6 +185,7 @@ final class PtouchTest extends TestCase
         $this->assertStringContainsString('--printer P900W', $args);
         $this->assertStringContainsString('--tape-width 24', $args);
         $this->assertStringContainsString('--snmp-community public', $args);
+        $this->assertStringContainsString('--vertical-offset 19', $args);
         $this->assertSame(320, $this->printed()[0]['tape_px']);
     }
 

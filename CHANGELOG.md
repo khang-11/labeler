@@ -19,6 +19,7 @@ The first versioned release: Labeler was rewritten from a single PHP page into a
 - `ptouch --scan` finds Brother printers on the network and `ptouch --list-connected` lists USB
   printers (a discovery button in the UI is a follow-up).
 - Requires Python 3.11 or newer (Bookworm / Debian 12+), because ptouch is a Python program.
+- ptouch centres the printable area on the physical tape, fixing the slightly smaller top margin on P900-series labels (`vertical_offset` can override it).
 
 ### Added
 

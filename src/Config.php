@@ -45,6 +45,9 @@ final class Config
             'printer_model' => '',
             'printer_tape_width' => 0,
             'printer_community' => 'public',
+            // Optional vertical offset in pixels for printing; null: ptouch
+            // centres the printable area on the tape automatically.
+            'vertical_offset' => null,
             // Optional CIDR for network discovery (follow-up UI); empty: local /24.
             'discovery_cidr' => '',
             // USB serial of the default USB printer (legacy shorthand).
@@ -102,9 +105,10 @@ final class Config
         foreach (['timeout', 'max_upload_bytes', 'max_copies', 'log_entries', 'printer_tape_width'] as $key) {
             $values[$key] = max(0, (int) $values[$key]);
         }
-        foreach (['ptouch_bin', 'printer', 'printer_host', 'printer_model', 'printer_community', 'discovery_cidr', 'serial', 'data_dir', 'fonts_dir', 'token', 'printer_url', 'printer_token', 'icon_api'] as $key) {
+        foreach (['ptouch_bin', 'printer', 'printer_host', 'printer_model', 'printer_community', 'vertical_offset', 'discovery_cidr', 'serial', 'data_dir', 'fonts_dir', 'token', 'printer_url', 'printer_token', 'icon_api'] as $key) {
             $values[$key] = trim((string) $values[$key]);
         }
+        $values['vertical_offset'] = $values['vertical_offset'] === '' ? null : (int) $values['vertical_offset'];
         $values['printers'] = self::printers($values['printers'], (string) $values['printer_community']);
         $usingDefaultUsb = count($values['printers']) === 1
             && isset($values['printers']['default'])
