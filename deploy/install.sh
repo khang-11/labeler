@@ -64,7 +64,7 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 say "Installing packages"
-packages="php-cli unzip curl ca-certificates"
+packages="php-cli unzip curl ca-certificates libusb-1.0-0"
 [ "$SKIP_PTOUCH" = 1 ] || packages="$packages git python3 python3-venv python3-pil python3-setuptools"
 apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends $packages >/dev/null
