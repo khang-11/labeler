@@ -58,23 +58,8 @@ jobs:
       - name: Lint and unit tests
         run: |
           docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work php:${{ matrix.php }}-cli sh -c '
-            for f in src/*.php public/*.php tools/ptouch-sim/*.php tools/ptouch-sim/ptouch-print; do php -l "$f" >/dev/null || exit 1; done
+            for f in src/*.php public/*.php tools/ptouch-sim/*.php tools/ptouch-sim/ptouch; do php -l "$f" >/dev/null || exit 1; done
             vendor/bin/phpunit'
-
-  contract:
-    name: Real ptouch-print ${{ matrix.ref }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        ref: [v1.6, v1.7, v1.8, v1.9]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Build ptouch-print ${{ matrix.ref }} from the upstream sources
-        run: docker build -t labeler-contract --build-arg PTOUCH_REF=${{ matrix.ref }} tools/contract
-      - name: Contract test
-        run: docker run --rm -v "$PWD:/work" labeler-contract
 
   install:
     name: Install script on ${{ matrix.image }}
@@ -115,7 +100,7 @@ jobs:
           mkdir /tmp/pkg && cd /tmp/pkg && unzip -q "$GITHUB_WORKSPACE/build/labeler-0.0.0-ci.zip"
           cd labeler
           test ! -e tests && test ! -e node_modules && test ! -e vendor
-          LABELER_PTOUCH_BIN=$GITHUB_WORKSPACE/tools/ptouch-sim/ptouch-print php -S 127.0.0.1:8080 -t public >/tmp/php.log 2>&1 &
+          LABELER_PTOUCH_BIN=$GITHUB_WORKSPACE/tools/ptouch-sim/ptouch php -S 127.0.0.1:8080 -t public >/tmp/php.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/api.php?action=health && break; sleep 0.5; done
           echo
           curl -fsS http://127.0.0.1:8080/api.php?action=status | grep -q '"ready":true'

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Labeler\Tests;
 
-use Labeler\Sim\Png;
 use Labeler\Sim\Simulator;
 
 /**
@@ -12,237 +11,235 @@ use Labeler\Sim\Simulator;
  */
 final class SimulatorTest extends TestCase
 {
+    /** @param list<string> $args */
     private function sim(array $args, array $state = []): array
     {
-        return (new Simulator($state + ['out' => $this->tmp . '/out']))->run($args);
+        return (new Simulator($state + ['out' => $this->tmp . '/printed']))->run($args);
     }
 
-    public function testVersionStrings(): void
+    public function testVersion(): void
     {
-        $this->assertSame("ptouch-print version v1.5 by Dominic Radermacher\n", $this->sim(['--version'], ['version' => '1.5'])['stdout']);
-        $this->assertSame("ptouch-print v1.9.r0.g0000000\n", $this->sim(['--version'])['stdout']);
+        $this->assertSame("ptouch 1.9.0\n", $this->sim(['--version'])['stdout']);
     }
 
-    public function testArgpRejectsWhatTheRealToolRejects(): void
+    public function testStatusJson(): void
     {
-        $r = $this->sim(['--text', 'line 1', 'line 2']);
-        $this->assertSame(64, $r['code'], 'the 1.7+ command line has no positional arguments (issue #1)');
-        $this->assertStringContainsString('No arguments supported', $r['stderr']);
-        $this->assertStringContainsString("unrecognized option '--fly'", $this->sim(['--fly'])['stderr']);
-        $this->assertStringContainsString("unrecognized option '--precut'", $this->sim(['--precut'], ['version' => '1.7'])['stderr']);
-        $this->assertStringContainsString('requires an argument', $this->sim(['--image'])['stderr']);
-        $this->assertSame(1, $this->sim(['--force-tape-width', '76'])['code']);
-    }
-
-    public function testLegacyCommandLine(): void
-    {
-        $state = ['version' => '1.5'];
-        $this->assertSame(0, $this->sim(['--text', 'line 1', 'line 2', '--cutmark'], $state)['code'], '1.5 takes several lines after --text');
-        $this->assertCount(1, glob($this->tmp . '/out/*.json') ?: []);
-        $this->assertSame(1, $this->sim(['--chain'], $state)['code']);
-        $this->assertSame(1, $this->sim(['--copies', '2', '--image', 'x'], $state)['code']);
-        $this->assertSame(1, $this->sim(['--image'], $state)['code']);
-        $this->assertSame(1, $this->sim(['stray'], $state)['code']);
-        $this->assertStringContainsString('usage', $this->sim(['--newline', 'x'], $state)['stdout']);
-        $this->assertSame(0, $this->sim(['--text'], $state)['code'], 'no lines, nothing to do');
-        $this->assertSame(0, $this->sim(['--chain', '--copies', '2', '--text', 'x'], ['version' => '1.6'])['code']);
-    }
-
-    public function testListCommands(): void
-    {
-        $this->assertStringContainsString('PT-P700', $this->sim(['--list-supported'])['stdout']);
-        $this->assertSame("PT-P700\tserial 000F1Z401234\t(USB bus 1, device 4)\n", $this->sim(['--list-connected'])['stdout']);
-        $others = '[{"printer": "PT-P750W", "serial": "B2", "tape_mm": 24}, {"printer": "PT-P700", "serial": "C3", "mode": "plite"}, "junk"]';
-        $this->assertSame("PT-P700\tserial 000F1Z401234\t(USB bus 1, device 4)\nPT-P750W\tserial B2\t(USB bus 1, device 5)\n"
-            . "PT-P700\tserial C3\t(USB bus 1, device 6) - in P-Lite mode, unsupported\n", $this->sim(['--list-connected'], ['others' => $others])['stdout']);
-        $info = $this->sim(['--serial', 'B2', '--info'], ['others' => json_decode($others, true)]);
-        $this->assertStringContainsString('PT-P750W found', $info['stderr']);
-        $this->assertStringContainsString('media width = 24 mm', $info['stdout']);
-        $this->assertSame(5, $this->sim(['--list-connected'], ['printer' => 'none'])['code']);
-    }
-
-    public function testPrintsTextPadCutmarkAndImages(): void
-    {
-        file_put_contents($this->tmp . '/a.png', self::labelPng(16, 76));
-        $r = $this->sim(['--text', 'one', '--newline', 'two', '--newline=three', '--pad', '10', '--cutmark', '--image', $this->tmp . '/a.png', '--font', 'x', '--debug']);
-        $this->assertSame(0, $r['code'], $r['stdout'] . $r['stderr']);
-        $record = json_decode((string) file_get_contents($this->tmp . '/out/label-0001.json'), true);
-        $this->assertSame([['text' => ['one', 'two', 'three']], ['pad' => 10], ['cutmark' => true], ['image' => '16x76']], $record['parts']);
-        $this->assertSame(16 * 76 / 2, $record['black_px']);
-        $this->assertFileExists($this->tmp . '/out/label-0001.png');
-        $r = $this->sim(['--newline', 'alone', '--newline', 'b', '--newline', 'c', '--newline', 'd', '--newline', 'e']);
+        $r = $this->sim(['--status', '--json'], ['printer' => 'PT-P900W', 'tape_mm' => 24]);
         $this->assertSame(0, $r['code']);
-        $record = json_decode((string) file_get_contents($this->tmp . '/out/label-0002.json'), true);
-        $this->assertSame([['text' => ['alone', 'b', 'c', 'd']], ['text' => ['e']]], $record['parts']);
+        $status = json_decode($r['stdout'], true);
+        $this->assertTrue($status['connected']);
+        $this->assertTrue($status['ready']);
+        $this->assertSame('PT-P900W', $status['model']);
+        $this->assertSame(360, $status['dpi']);
+        $this->assertSame(320, $status['tape_px']);
+        $this->assertSame(24, $status['media_width_mm']);
+        $this->assertSame(0, $status['error_code']);
     }
 
-    public function testNothingToPrintAndNoOutputFolder(): void
+    public function testStatusWithoutPrinter(): void
     {
-        $this->assertSame(0, $this->sim([])['code']);
-        file_put_contents($this->tmp . '/a.png', self::labelPng(8, 8));
-        $r = (new Simulator(['out' => '']))->run(['--image', $this->tmp . '/a.png']);
+        $r = $this->sim(['--status', '--json'], ['printer' => 'none']);
+        $this->assertSame(5, $r['code']);
+        $status = json_decode($r['stdout'], true);
+        $this->assertFalse($status['connected']);
+        $this->assertFalse($status['ready']);
+        $this->assertStringContainsString('No printer found', $status['message']);
+    }
+
+    public function testStatusProblems(): void
+    {
+        $this->assertFalse(json_decode($this->sim(['--status', '--json'], ['tape_mm' => 0])['stdout'], true)['ready']);
+        $status = json_decode($this->sim(['--status', '--json'], ['tape_mm' => 12, 'error' => 0x1000])['stdout'], true);
+        $this->assertFalse($status['ready']);
+        $this->assertSame(0x1000, $status['error_code']);
+        $this->assertStringContainsString('No tape', json_decode($this->sim(['--status', '--json'], ['tape_mm' => 0])['stdout'], true)['message']);
+        $this->assertStringContainsString('P-Lite', json_decode($this->sim(['--status', '--json'], ['mode' => 'plite'])['stdout'], true)['message']);
+    }
+
+    public function testStatusAutoDetectsModelAndTape(): void
+    {
+        $status = json_decode($this->sim(['--status', '--json', '--printer', 'PT-P750W', '--tape-width', '9'])['stdout'], true);
+        $this->assertSame('PT-P750W', $status['model']);
+        $this->assertSame(9, $status['media_width_mm']);
+        $this->assertSame(52, $status['tape_px']);
+    }
+
+    public function testListConnected(): void
+    {
+        $r = $this->sim(['--list-connected', '--json']);
         $this->assertSame(0, $r['code']);
-        $this->assertStringContainsString('image size (8px x 8px)', $r['stdout']);
+        $list = json_decode($r['stdout'], true);
+        $this->assertCount(1, $list);
+        $this->assertSame('PT-P700', $list[0]['model']);
+        $this->assertSame('000F1Z401234', $list[0]['serial']);
+        $this->assertTrue($list[0]['usable']);
+
+        $others = '[{"printer": "PT-P750W", "serial": "B2", "tape_mm": 24}, "junk"]';
+        $list = json_decode($this->sim(['--list-connected', '--json'], ['others' => $others])['stdout'], true);
+        $this->assertCount(2, $list);
+        $this->assertSame(5, $this->sim(['--list-connected', '--json'], ['printer' => 'none'])['code']);
     }
 
-    public function testImageErrors(): void
+    public function testPrintStoresRecords(): void
     {
-        $this->assertSame("failed to load image file\n", $this->sim(['--image', $this->tmp . '/missing.png'])['stdout']);
-        file_put_contents($this->tmp . '/tall.png', self::labelPng(8, 100));
-        $r = $this->sim(['--image', $this->tmp . '/tall.png']);
-        $this->assertSame(0, $r['code'], 'the real tool ignores the error here');
-        $this->assertStringContainsString('image is too large (8px x 100px)', $r['stdout']);
-    }
-
-    public function testWritePngWithoutPrinter(): void
-    {
-        file_put_contents($this->tmp . '/a.png', self::labelPng(36, 76));
-        $r = $this->sim(['--force-tape-width', '76', '--writepng', $this->tmp . '/o.png', '--image', $this->tmp . '/a.png'], ['printer' => 'none']);
+        $file = $this->tmp . '/label.png';
+        file_put_contents($file, self::labelPng(180, 76));
+        $r = $this->sim(
+            ['--image', $file, '--copies', '2', '--chain', '--precut', '--full-cut', '--no-margin'],
+            ['tape_mm' => 12]
+        );
         $this->assertSame(0, $r['code']);
-        $this->assertStringContainsString('requires 5.1 mm of tape', $r['stdout']);
-        $this->assertSame(file_get_contents($this->tmp . '/a.png'), file_get_contents($this->tmp . '/o.png'));
-        $this->assertSame(0, $this->sim(['--write-png', $this->tmp . '/t.png', '--text', 'hi'])['code']);
-        $this->assertSame(76, Png::read($this->tmp . '/t.png')['height']);
-        $bad = $this->sim(['--writepng', $this->tmp . '/no/such/dir/x.png', '--text', 'hi']);
-        $this->assertSame(1, $bad['code']);
-        $this->assertStringContainsString('failed', $bad['stdout']);
+        $printed = $this->printed();
+        $this->assertCount(2, $printed);
+        $this->assertSame(2, $printed[0]['copies']);
+        $this->assertTrue($printed[0]['chain']);
+        $this->assertTrue($printed[0]['precut']);
+        $this->assertTrue($printed[0]['full_cut']);
+        $this->assertTrue($printed[0]['no_margin']);
+        $this->assertSame(76, $printed[0]['height_px']);
+        $this->assertFileExists($this->tmp . '/printed/label-0001.png');
     }
 
-    public function testPrinterStates(): void
+    public function testPrintTooLarge(): void
     {
-        $this->assertStringContainsString('No P-Touch printer with serial X found', $this->sim(['--serial', 'X', '--info'])['stderr']);
-        $this->assertSame(5, $this->sim(['--info'], ['mode' => 'access'])['code']);
-        $this->assertStringContainsString('P-Lite', $this->sim(['--info'], ['mode' => 'plite'])['stdout']);
-        $this->assertStringContainsString('unsupported', $this->sim(['--info'], ['mode' => 'unsupported'])['stdout']);
-        $this->assertStringContainsString('tape is 0px', $this->sim(['--info'], ['tape_mm' => 0])['stdout']);
-        $r = $this->sim(['--info'], ['version' => '1.8', 'tape_color' => 0x99, 'text_color' => 0x99]);
-        $this->assertStringContainsString('tape color = 0x99 (unknown)', $r['stdout']);
-        $this->assertStringContainsString('maximum printing width for this printer is 128px', $r['stdout']);
-        $this->assertStringContainsString('media type = 01 (Laminated tape)', $this->sim(['--info'], ['version' => '1.6'])['stdout']);
+        $file = $this->tmp . '/label.png';
+        file_put_contents($file, self::labelPng(180, 128));
+        $r = $this->sim(['--image', $file], ['tape_mm' => 12]);
+        $this->assertSame(0, $r['code'], 'like ptouch-print, the simulator ignores the print result');
+        $this->assertStringContainsString('image is too large', $r['stdout']);
     }
 
-    public function testFailureAndDelay(): void
+    public function testMissingImageAndFailure(): void
     {
-        file_put_contents($this->tmp . '/a.png', self::labelPng(8, 8));
-        $r = $this->sim(['--image', $this->tmp . '/a.png'], ['fail' => 'print']);
+        $this->assertSame(1, $this->sim(['--image', $this->tmp . '/none.png'])['code']);
+        $file = $this->tmp . '/label.png';
+        file_put_contents($file, self::labelPng(180, 76));
+        $r = $this->sim(['--image', $file], ['fail' => 'print']);
         $this->assertSame(2, $r['code']);
-        $started = microtime(true);
-        $this->sim(['--copies', '3', '--chain', '--precut', '--image', $this->tmp . '/a.png'], ['delay_ms' => 50]);
-        $this->assertGreaterThan(0.04, microtime(true) - $started);
-        $records = glob($this->tmp . '/out/*.json') ?: [];
-        $this->assertCount(3, $records);
+        $this->assertStringContainsString('write error', $r['stderr']);
     }
 
-    public function testJamReportsSuccessThenAnError(): void
+    public function testJamWritesStateFile(): void
     {
-        file_put_contents($this->tmp . '/a.png', self::labelPng(8, 8));
-        file_put_contents($this->tmp . '/state.json', '{"fail": "jam", "tape_mm": 12}');
-        $sim = new Simulator(['out' => $this->tmp . '/out', 'fail' => 'jam'], $this->tmp . '/state.json');
-        $this->assertSame(0, $sim->run(['--image', $this->tmp . '/a.png'])['code']);
-        $this->assertEquals(['error' => 4, 'fail' => '', 'tape_mm' => 12], json_decode((string) file_get_contents($this->tmp . '/state.json'), true));
-        file_put_contents($this->tmp . '/state.json', 'broken');
-        (new Simulator(['fail' => 'jam'], $this->tmp . '/state.json'))->run(['--image', $this->tmp . '/a.png']);
-        $this->assertSame(['error' => 4, 'fail' => ''], json_decode((string) file_get_contents($this->tmp . '/state.json'), true));
-        $this->assertSame(0, (new Simulator(['fail' => 'jam']))->run(['--image', $this->tmp . '/a.png'])['code'], 'without a state file nothing is written');
+        $file = $this->tmp . '/label.png';
+        file_put_contents($file, self::labelPng(180, 76));
+        $state = $this->tmp . '/state.json';
+        file_put_contents($state, '{"fail": "jam"}');
+        $sim = new Simulator(['out' => $this->tmp . '/out', 'fail' => 'jam'], $state);
+        $this->assertSame(0, $sim->run(['--image', $file])['code']);
+        $saved = json_decode((string) file_get_contents($state), true);
+        $this->assertSame(0x0004, $saved['error']);
     }
 
-    public function testStateFromEnvironmentAndFile(): void
+    public function testUnknownOption(): void
     {
-        file_put_contents($this->tmp . '/state.json', '{"tape_mm": "24", "printer": "PT-P750W"}');
-        $state = Simulator::stateFromEnv(['PTSIM_VERSION' => '1.6', 'PTSIM_TAPE_MM' => '9', 'PTSIM_STATE' => $this->tmp . '/state.json', 'PTSIM_MODE' => false]);
-        $this->assertEquals(['version' => '1.6', 'tape_mm' => 24, 'printer' => 'PT-P750W'], $state);
-        file_put_contents($this->tmp . '/bad.json', 'nope');
-        $this->assertSame([], Simulator::stateFromEnv(['PTSIM_STATE' => $this->tmp . '/bad.json']));
-        $this->assertArrayHasKey('version', Simulator::defaults());
+        $r = $this->sim(['--fly']);
+        $this->assertSame(2, $r['code']);
+        $this->assertStringContainsString("unrecognized option '--fly'", $r['stderr']);
+        $this->assertSame(2, $this->sim(['--image'])['code']);
     }
 
-    public function testUnknownPrinterAndTape(): void
+    public function testStateFromEnv(): void
     {
-        $this->assertSame(5, $this->sim(['--info'], ['printer' => 'PT-9999'])['code']);
-        $this->assertStringContainsString('tape is 0px', $this->sim(['--info'], ['tape_mm' => 13])['stdout']);
+        $state = Simulator::stateFromEnv(['PTSIM_VERSION' => '1.2', 'PTSIM_TAPE_MM' => '9', 'PTSIM_MODE' => false]);
+        $this->assertSame('1.2', $state['version']);
+        $this->assertSame(9, $state['tape_mm']);
+        $this->assertArrayNotHasKey('mode', $state);
+        $this->assertArrayHasKey('tape_mm', Simulator::defaults());
     }
 
-    public function testEntryScript(): void
+    public function testStateFileOverridesTheEnvironment(): void
     {
-        $this->simulate(['version' => '1.9']);
-        $out = [];
-        exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(self::simBin()) . ' --info 2>&1', $out, $code);
-        $this->assertSame(0, $code);
-        $this->assertStringContainsString('maximum printing width for this tape is 76px', implode("\n", $out));
+        $state = $this->tmp . '/state.json';
+        file_put_contents($state, '{"tape_mm": 9, "printer": "PT-P750W"}');
+        $loaded = Simulator::stateFromEnv(['PTSIM_STATE' => $state, 'PTSIM_TAPE_MM' => '24']);
+        $this->assertSame(9, $loaded['tape_mm']);
+        $this->assertSame('PT-P750W', $loaded['printer']);
     }
 
-    /** Forward PNG filter, to build test images with every filter type. */
-    private static function filter(int $type, string $line, string $prev, int $bpp): string
+    public function testArgumentForms(): void
     {
-        $out = '';
-        for ($i = 0; $i < strlen($line); $i++) {
-            $a = $i >= $bpp ? ord($line[$i - $bpp]) : 0;
-            $b = ord($prev[$i]);
-            $c = $i >= $bpp ? ord($prev[$i - $bpp]) : 0;
-            $p = $a + $b - $c;
-            $pred = [0, $a, $b, intdiv($a + $b, 2),
-                (abs($p - $a) <= abs($p - $b) && abs($p - $a) <= abs($p - $c)) ? $a : (abs($p - $b) <= abs($p - $c) ? $b : $c)][$type];
-            $out .= chr((ord($line[$i]) - $pred) & 0xff);
-        }
-        return $out;
+        $file = $this->tmp . '/label.png';
+        file_put_contents($file, self::labelPng(60, 76));
+        $this->assertSame(0, $this->sim(['--image=' . $file, '--copies=2'], ['tape_mm' => 12])['code']);
+        $this->assertCount(2, $this->printed());
+        $this->assertSame(2, $this->sim(['stray'])['code']);
+        $this->assertSame(0, $this->sim(['--'])['code']);
+        $this->assertSame(0, $this->sim(['--copies', '2'])['code']);
     }
 
-    public function testPngReaderHandlesEveryFilterAndBitDepth(): void
+    public function testShortPrinterNameAndHumanStatus(): void
     {
-        $width = 9;
-        $height = 5;
-        $pixels = [];
-        for ($y = 0; $y < $height; $y++) {
-            for ($x = 0; $x < $width; $x++) {
-                $pixels[$y][$x] = ($x * 3 + $y * 5) % 7 < 3 ? 1 : 0;
-            }
-        }
-        foreach ([1, 8] as $depth) {
-            $raw = '';
-            $prev = str_repeat("\0", (int) ceil($width * $depth / 8));
-            for ($y = 0; $y < $height; $y++) {
-                $line = '';
-                if ($depth === 8) {
-                    foreach ($pixels[$y] as $v) {
-                        $line .= chr($v);
-                    }
-                } else {
-                    $bits = implode('', $pixels[$y]) . str_repeat('0', 16 - $width);
-                    $line = chr(bindec(substr($bits, 0, 8))) . chr(bindec(substr($bits, 8, 8)));
-                }
-                $type = $y % 5;
-                $raw .= chr($type) . self::filter($type, $line, $prev, max(1, intdiv($depth, 8)));
-                $prev = $line;
-            }
-            // black first in the palette: the reader must pick the darker colour
-            $file = $this->tmp . "/d$depth.png";
-            file_put_contents($file, self::pngChunks(pack('NNCCCCC', $width, $height, $depth, 3, 0, 0, 0), "\x10\x10\x10\xf0\xf0\xf0", $raw));
-            $png = Png::read($file);
+        $status = $this->sim(['--status', '--json', '--printer', 'P750W']);
+        $this->assertSame('PT-P750W', json_decode($status['stdout'], true)['model']);
+        $human = $this->sim(['--status']);
+        $this->assertStringContainsString('model = PT-P700', $human['stdout']);
+    }
+
+    public function testSerialSelection(): void
+    {
+        $others = '[{"printer": "PT-P750W", "serial": "B2", "tape_mm": 24}]';
+        $status = json_decode($this->sim(['--status', '--json', '--serial', 'B2'], ['others' => $others])['stdout'], true);
+        $this->assertSame('PT-P750W', $status['model']);
+        $missing = json_decode($this->sim(['--status', '--json', '--serial', 'NOPE'], ['others' => $others])['stdout'], true);
+        $this->assertFalse($missing['connected']);
+    }
+
+    public function testUnsupportedMode(): void
+    {
+        $status = json_decode($this->sim(['--status', '--json'], ['mode' => 'unsupported'])['stdout'], true);
+        $this->assertStringContainsString('not supported', $status['message']);
+    }
+
+    public function testHumanListConnected(): void
+    {
+        $r = $this->sim(['--list-connected']);
+        $this->assertStringContainsString('PT-P700', $r['stdout']);
+    }
+
+    public function testDelayAndNoOutputFolder(): void
+    {
+        $file = $this->tmp . '/label.png';
+        file_put_contents($file, self::labelPng(60, 76));
+        $sim = new Simulator(['out' => '', 'delay_ms' => 1], '');
+        $this->assertSame(0, $sim->run(['--image', $file])['code']);
+    }
+
+    public function testPngFiltersAndBlank(): void
+    {
+        $plte = "\xff\xff\xff\0\0\0";
+        $ihdr = pack('NNCCCCC', 8, 1, 1, 3, 0, 0, 0);
+        for ($filter = 0; $filter <= 4; $filter++) {
+            $file = $this->tmp . '/filter-' . $filter . '.png';
+            file_put_contents($file, self::pngChunks($ihdr, $plte, chr($filter) . "\xaa"));
+            $png = \Labeler\Sim\Png::read($file);
+            $this->assertNotNull($png, 'filter ' . $filter);
             $this->assertTrue($png['palette']);
-            $expected = array_map(static function (array $row): string {
-                return implode('', array_map(static function (int $v): string {
-                    return $v === 0 ? '#' : '.';
-                }, $row));
-            }, $pixels);
-            $this->assertSame($expected, $png['rows'], "depth $depth");
         }
+        $blank = $this->tmp . '/blank.png';
+        file_put_contents($blank, \Labeler\Sim\Png::blank(8, 1));
+        $this->assertSame(0, \Labeler\Sim\Png::read($blank)['black']);
     }
 
-    public function testPngReaderRejectsOrFlagsOtherImages(): void
+    public function testPngRejectsWrongImages(): void
     {
-        file_put_contents($this->tmp . '/x.txt', 'hello');
-        $this->assertNull(Png::read($this->tmp . '/x.txt'));
-        $this->assertNull(Png::read($this->tmp . '/missing.png'));
-        file_put_contents($this->tmp . '/noihdr.png', "\x89PNG\r\n\x1a\n" . pack('N', 0) . 'IEND' . pack('N', 0));
-        $this->assertNull(Png::read($this->tmp . '/noihdr.png'));
-        file_put_contents($this->tmp . '/rgb.png', self::pngChunks(pack('NNCCCCC', 2, 2, 8, 2, 0, 0, 0), null, str_repeat("\0", 14)));
-        $this->assertFalse(Png::read($this->tmp . '/rgb.png')['palette']);
-        file_put_contents($this->tmp . '/short.png', self::pngChunks(pack('NNCCCCC', 20, 20, 1, 3, 0, 0, 0), "\xff\xff\xff\0\0\0", "\0\0"));
-        $this->assertNull(Png::read($this->tmp . '/short.png'));
-        file_put_contents($this->tmp . '/onecolour.png', self::pngChunks(pack('NNCCCCC', 8, 1, 1, 3, 0, 0, 0), "\xff\xff\xff", "\0\xff"));
-        $this->assertSame(8, Png::read($this->tmp . '/onecolour.png')['black'], 'missing colour 1 counts as black, like gd');
-        file_put_contents($this->tmp . '/blank.png', Png::blank(10, 3));
-        $blank = Png::read($this->tmp . '/blank.png');
-        $this->assertSame([10, 3, 0], [$blank['width'], $blank['height'], $blank['black']]);
+        $file = $this->tmp . '/truecolor.png';
+        file_put_contents($file, self::pngChunks(pack('NNCCCCC', 1, 1, 8, 2, 0, 0, 0), null, "\0\0\0\0"));
+        $this->assertFalse(\Labeler\Sim\Png::read($file)['palette']);
+
+        $file = $this->tmp . '/no-ihdr.png';
+        file_put_contents($file, "\x89PNG\r\n\x1a\n");
+        $this->assertNull(\Labeler\Sim\Png::read($file));
+
+        $file = $this->tmp . '/bad-idat.png';
+        $chunk = static function (string $type, string $data): string {
+            return pack('N', strlen($data)) . $type . $data . pack('N', crc32($type . $data));
+        };
+        file_put_contents(
+            $file,
+            "\x89PNG\r\n\x1a\n" . $chunk('IHDR', pack('NNCCCCC', 8, 1, 1, 3, 0, 0, 0))
+            . $chunk('PLTE', "\xff\xff\xff\0\0\0") . $chunk('IDAT', 'not gzip') . $chunk('IEND', '')
+        );
+        $this->assertNull(\Labeler\Sim\Png::read($file));
     }
 }

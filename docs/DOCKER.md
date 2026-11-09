@@ -1,6 +1,6 @@
 # Docker
 
-The image `ghcr.io/philippmundhenk/labeler` contains the interface, PHP and ptouch-print. It
+The image `ghcr.io/philippmundhenk/labeler` contains the interface, PHP and ptouch (Python). It
 runs as user 1000, listens on port 8080 and keeps the print log and fonts in `/data`. Tags:
 `latest` (newest release), `X.Y.Z`, `X.Y`, and `main` (current development).
 
@@ -10,12 +10,24 @@ runs as user 1000, listens on port 8080 and keeps the print log and fonts in `/d
 docker run --rm -p 8080:8080 -e LABELER_DEMO=1 ghcr.io/philippmundhenk/labeler
 ```
 
-Open <http://localhost:8080/>. The demo uses the simulated printer (12 mm tape, ptouch-print 1.9);
+Open <http://localhost:8080/>. The demo uses the simulated printer (12 mm tape);
 printed labels are written as PNG and JSON to `/data/demo-printed`. Mount a folder on `/data` to
-look at them. Other simulated printers: `-e PTSIM_TAPE_MM=24 -e PTSIM_VERSION=1.5` and the other
+look at them. Other simulated printers: `-e PTSIM_TAPE_MM=24 -e PTSIM_PRINTER=PT-P900W` and the other
 `PTSIM_*` variables in [tools/ptouch-sim/README.md](../tools/ptouch-sim/README.md).
 
-## Printer on another computer (recommended)
+## Printer on the network (recommended)
+
+Set the printer host; ptouch detects the model and the tape:
+
+```yaml
+    environment:
+      LABELER_PRINTER_HOST: "192.168.8.235"
+```
+
+For several printers use `LABELER_PRINTERS` JSON and `LABELER_PRINTER` (see the README).
+`LABELER_PRINTER_MODEL` and `LABELER_PRINTER_TAPE_WIDTH` are optional overrides.
+
+## Printer on another computer
 
 The printer hangs on a small computer anywhere, the interface runs on your server:
 
@@ -58,4 +70,4 @@ All `LABELER_*` variables from the [README](../README.md#configuration) work. In
 | `LABELER_PASSWORD` | empty | Password for the interface (plain or a `password_hash()` hash) |
 
 The image is built for amd64, arm64 and arm/v7. Build it yourself with `docker build -t labeler .`
-(`--build-arg PTOUCH_REF=v1.8` for another ptouch-print version).
+(`--build-arg PTOUCH_REF=v1.2.0` for another ptouch version).

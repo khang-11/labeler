@@ -29,7 +29,7 @@ abstract class TestCase extends Base
 
     protected static function simBin(): string
     {
-        return dirname(__DIR__, 2) . '/tools/ptouch-sim/ptouch-print';
+        return dirname(__DIR__, 2) . '/tools/ptouch-sim/ptouch';
     }
 
     /** Simulator state for the subprocesses started by the code under test. */

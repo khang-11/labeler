@@ -1,6 +1,6 @@
 # 0002. Plain PHP and ES modules: no framework, no build step, no runtime dependencies
 
-Date: 2026-11-08 · Status: accepted
+Date: 2026-11-08 · Status: accepted (partly superseded by 0007: ptouch needs Python 3.11+)
 
 ## Context
 

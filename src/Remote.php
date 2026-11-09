@@ -30,7 +30,7 @@ final class Remote
      * @return array{status: int, data: array<string, mixed>|null, error: string}
      *   status 0 when the agent cannot be reached
      */
-    public function call(string $method, string $action, string $body = '', string $serial = ''): array
+    public function call(string $method, string $action, string $body = '', string $printer = ''): array
     {
         $headers = ['Accept: application/json'];
         if ($this->token !== '') {
@@ -54,7 +54,10 @@ final class Remote
             return true;
         });
         try {
-            $query = 'action=' . rawurlencode($action) . ($serial !== '' ? '&serial=' . rawurlencode($serial) : '');
+            $query = 'action=' . rawurlencode($action);
+            if ($printer !== '') {
+                $query .= '&printer=' . rawurlencode($printer) . '&serial=' . rawurlencode($printer);
+            }
             $raw = file_get_contents($this->url . '/api.php?' . $query, false, $context);
         } finally {
             restore_error_handler();

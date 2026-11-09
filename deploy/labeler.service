@@ -13,6 +13,7 @@ SupplementaryGroups=lp
 WorkingDirectory=/opt/labeler
 ExecStart=/usr/bin/php -S 0.0.0.0:8080 -t /opt/labeler/public /opt/labeler/src/router.php
 Environment=LABELER_DATA_DIR=/var/lib/labeler
+Environment=LABELER_PTOUCH_BIN=/usr/local/bin/ptouch
 StateDirectory=labeler
 Restart=on-failure
 RestartSec=5

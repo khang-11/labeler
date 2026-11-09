@@ -23,7 +23,7 @@ test('a counter print stops at the first failure', async ({ page }) => {
   await page.locator('.block textarea').fill('No {n}');
   await settled(page);
   await page.locator('#copies').fill('2');
-  await page.route('**/api.php?action=print', (route) => route.fulfill({ status: 502, json: { ok: false, error: 'ptouch-print reported a problem', output: 'jam' } }));
+  await page.route('**/api.php?action=print', (route) => route.fulfill({ status: 502, json: { ok: false, error: 'ptouch reported a problem', output: 'jam' } }));
   await page.locator('#print').click();
   await expect(page.locator('.toast.bad')).toContainText('reported a problem');
   expect(await page.evaluate(() => window.labeler.state.label.counter)).toBe(1);

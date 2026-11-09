@@ -19,19 +19,19 @@ final class Api
     ];
 
     private Config $config;
-    private PtouchPrint $printer;
+    private Ptouch $printer;
     private Log $log;
     private ?Remote $remote;
     private Session $session;
-    private string $serial = '';
+    private string $printerId = '';
     /** Delay after a wrong password, against guessing; tests set it to 0. */
     public static int $loginDelayMs = 1000;
 
-    public function __construct(Config $config, ?PtouchPrint $printer = null, ?Log $log = null)
+    public function __construct(Config $config, ?Ptouch $printer = null, ?Log $log = null)
     {
         $this->config = $config;
         $this->log = $log ?? new Log((string) $config->get('data_dir'), (int) $config->get('log_entries'));
-        $this->printer = $printer ?? PtouchPrint::fromConfig($config, $this->log);
+        $this->printer = $printer ?? Ptouch::fromConfig($config, $this->log);
         $url = (string) $config->get('printer_url');
         $this->remote = $url === '' ? null : new Remote($url, (string) $config->get('printer_token'), (int) $config->get('timeout'));
         $this->session = new Session((string) $config->get('password'));
@@ -86,13 +86,13 @@ final class Api
         if ($handler === 'logout') {
             return Response::json(200, ['ok' => true], ['Set-Cookie' => Session::cookie('', $secure, 0)]);
         }
-        $serial = (string) ($query['serial'] ?? '');
-        if ($serial !== '' && !preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/', $serial)) {
-            return Response::json(400, ['error' => 'invalid printer serial number']);
+        $printerId = (string) ($query['printer'] ?? $query['serial'] ?? '');
+        if ($printerId !== '' && !preg_match('/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/', $printerId)) {
+            return Response::json(400, ['error' => 'invalid printer id']);
         }
-        if ($serial !== '') {
-            $this->serial = $serial;
-            $this->printer = $this->printer->withSerial($serial);
+        if ($printerId !== '') {
+            $this->printerId = $printerId;
+            $this->printer = $this->printer->withPrinter($printerId);
         }
         if ($handler === 'print') {
             return $this->print($body, $contentType);
@@ -161,9 +161,12 @@ final class Api
             return $this->remoteStatus($this->remote);
         }
         $version = $this->printer->version();
-        $info = $version === null
-            ? PtouchPrint::parseInfo('', 127)
-            : $this->printer->info();
+        $info = $this->printer->info();
+        if ($version === null) {
+            $info['connected'] = false;
+            $info['ready'] = false;
+            $info['message'] = 'ptouch was not found. Install it or set ptouch_bin in config.php.';
+        }
         return Response::json(200, [
             'app_version' => Config::VERSION,
             'ptouch_version' => $version,
@@ -179,7 +182,7 @@ final class Api
 
     private function remoteStatus(Remote $remote): Response
     {
-        $result = $remote->call('GET', 'status', '', $this->serial);
+        $result = $remote->call('GET', 'status', '', $this->printerId);
         $data = $result['data'] ?? [];
         if ($result['status'] === 200 && isset($data['printer']) && is_array($data['printer'])) {
             $printer = $data['printer'];
@@ -187,10 +190,10 @@ final class Api
             $features = $data['features'] ?? [];
             $maxCopies = min((int) $this->config->get('max_copies'), (int) ($data['max_copies'] ?? PHP_INT_MAX));
         } else {
-            $printer = PtouchPrint::parseInfo('', 1);
+            $printer = Ptouch::emptyStatus();
             $printer['message'] = $this->remoteProblem($remote, $result);
             $version = null;
-            $features = array_fill_keys(array_keys(PtouchPrint::FEATURES), false);
+            $features = array_fill_keys(array_keys(Ptouch::FEATURES), false);
             $maxCopies = (int) $this->config->get('max_copies');
         }
         return Response::json(200, [
@@ -223,7 +226,7 @@ final class Api
     {
         $remote = $this->remote;
         assert($remote !== null);
-        $result = $remote->call($method, $action, $body, $this->serial);
+        $result = $remote->call($method, $action, $body, $this->printerId);
         if ($result['status'] === 0 || $result['status'] === 401 || $result['data'] === null) {
             return Response::json(502, ['ok' => false, 'error' => $this->remoteProblem($remote, $result), 'output' => '']);
         }
@@ -286,7 +289,7 @@ final class Api
         } finally {
             @unlink($file);
         }
-        // ptouch-print does not notice errors during printing (exit code 0 after a cutter jam
+        // ptouch can miss errors during printing (exit code 0 after a cutter jam
         // or an opened cover), so ask the printer once more
         if ($result['ok']) {
             $after = $this->printer->info();
@@ -300,7 +303,7 @@ final class Api
         $lengthMm = round($size['width'] / max(1, (int) $info['dpi']) * 25.4, 1);
         return Response::json($result['ok'] ? 200 : 502, [
             'ok' => $result['ok'],
-            'error' => $result['ok'] ? null : ($result['problem'] ?? 'ptouch-print reported a problem'),
+            'error' => $result['ok'] ? null : ($result['problem'] ?? 'ptouch reported a problem'),
             'output' => $result['output'],
             'notes' => $result['notes'],
             'width_px' => $size['width'],
@@ -358,8 +361,8 @@ final class Api
         if ($this->remote !== null) {
             return $this->forward('GET', 'printers');
         }
-        $printers = $this->printer->connected();
-        return Response::json(200, ['supported' => $printers !== null, 'printers' => $printers ?? []]);
+        $printers = $this->printer->printers();
+        return Response::json(200, ['supported' => true, 'printers' => $printers]);
     }
 
     private function log(): Response

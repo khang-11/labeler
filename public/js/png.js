@@ -1,4 +1,4 @@
-// 1-bit palette PNG encoder: the format `ptouch-print --image` prints correctly.
+// 1-bit palette PNG encoder: the format `ptouch --image` prints correctly.
 // Palette index 0 is white, index 1 is black.
 
 const CRC_TABLE = (() => {

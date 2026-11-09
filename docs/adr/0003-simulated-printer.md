@@ -1,6 +1,6 @@
 # 0003. Tests run against a simulated ptouch-print, pinned to the real one by a contract test
 
-Date: 2026-11-08 · Status: accepted
+Date: 2026-11-08 · Status: accepted (simulator now covers ptouch, see 0007)
 
 ## Context
 

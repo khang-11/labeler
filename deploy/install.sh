@@ -14,8 +14,8 @@
 #   --agent           printer agent only: /opt/labeler-agent, port 8631, token
 #   --version X.Y.Z   install this release instead of the newest
 #   --zip FILE        install from a downloaded labeler-X.Y.Z.zip
-#   --ptouch-ref REF  ptouch-print tag or branch to build (default v1.9)
-#   --skip-ptouch     do not build ptouch-print (it is already installed)
+#   --ptouch-ref REF  ptouch tag, branch or commit to install (default v1.2.0)
+#   --skip-ptouch     do not install ptouch (it is already installed)
 #   --port N          port of the web interface (default 8080)
 #   --dir DIR         install folder (default /opt/labeler)
 #   --no-service      do not set up systemd and udev (containers, own web server)
@@ -24,7 +24,7 @@ set -eu
 REPO=PhilippMundhenk/labeler
 VERSION=latest
 ZIP=
-PTOUCH_REF=v1.9
+PTOUCH_REF=v1.2.0
 SKIP_PTOUCH=0
 PORT=
 DIR=
@@ -64,26 +64,31 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 say "Installing packages"
-packages="php-cli unzip curl ca-certificates"
-[ "$SKIP_PTOUCH" = 1 ] || packages="$packages git cmake gcc make pkg-config gettext libgd-dev libusb-1.0-0-dev"
+packages="php-cli unzip curl ca-certificates libusb-1.0-0"
+[ "$SKIP_PTOUCH" = 1 ] || packages="$packages git python3 python3-venv python3-pil python3-setuptools"
 apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends $packages >/dev/null
 
 if [ "$SKIP_PTOUCH" = 0 ]; then
-  say "Building ptouch-print $PTOUCH_REF"
+  python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' \
+    || die "ptouch needs Python 3.11 or newer; install Raspberry Pi OS Bookworm or Debian 12+"
+  say "Installing ptouch $PTOUCH_REF"
   for i in 1 2 3; do
-    git clone -q https://git.familie-radermacher.ch/linux/ptouch-print.git "$work/ptouch-print" && break
-    rm -rf "$work/ptouch-print"
-    [ "$i" = 3 ] && die "cannot download ptouch-print; try again later"
+    rm -rf "$work/ptouch"
+    git clone -q https://github.com/khang-11/ptouch.git "$work/ptouch" && break
+    [ "$i" = 3 ] && die "cannot download ptouch; try again later"
     sleep 10
   done
-  git -C "$work/ptouch-print" -c advice.detachedHead=false checkout -q "$PTOUCH_REF"
-  cmake -S "$work/ptouch-print" -B "$work/ptouch-print/build" >/dev/null
-  cmake --build "$work/ptouch-print/build" -j "$(nproc)" >/dev/null
-  install -m 755 "$work/ptouch-print/build/ptouch-print" /usr/local/bin/ptouch-print
+  git -C "$work/ptouch" -c advice.detachedHead=false checkout -q "$PTOUCH_REF"
+  rm -rf /opt/ptouch
+  python3 -m venv --system-site-packages /opt/ptouch
+  /opt/ptouch/bin/pip install -q --no-cache-dir --no-deps "$work/ptouch"
+  /opt/ptouch/bin/pip install -q --no-cache-dir packbits pyusb
+  chmod -R u=rwX,go=rX /opt/ptouch
+  ln -sf /opt/ptouch/bin/ptouch /usr/local/bin/ptouch
 fi
-command -v ptouch-print >/dev/null || die "ptouch-print is not installed; run without --skip-ptouch"
-ptouch-print --version 2>&1 | head -n 1
+command -v ptouch >/dev/null || die "ptouch is not installed; run without --skip-ptouch"
+ptouch --version 2>&1 | head -n 1
 
 if [ -z "$ZIP" ]; then
   if [ "$VERSION" = latest ]; then

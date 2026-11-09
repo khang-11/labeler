@@ -1,13 +1,13 @@
 // Calls to api.php. Every call resolves to {ok, status, data}; network errors included.
 
-// USB serial number of the chosen printer when several are attached; empty: the default one
-let serial = '';
-export const setSerial = (value) => {
-  serial = value || '';
+// ID of the chosen printer when several are configured; empty: the default one
+let printer = '';
+export const setPrinter = (value) => {
+  printer = value || '';
 };
 
 async function call(action, options = {}) {
-  const query = `action=${encodeURIComponent(action)}${serial ? `&serial=${encodeURIComponent(serial)}` : ''}`;
+  const query = `action=${encodeURIComponent(action)}${printer ? `&printer=${encodeURIComponent(printer)}` : ''}`;
   try {
     const res = await fetch(`api.php?${query}`, { cache: 'no-store', ...options });
     let data = {};

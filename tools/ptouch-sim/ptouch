@@ -1,7 +1,7 @@
 #!/usr/bin/env php
 <?php
 
-// Simulated ptouch-print with a simulated printer. See README.md in this folder.
+// Simulated ptouch with a simulated printer. See README.md in this folder.
 
 declare(strict_types=1);
 

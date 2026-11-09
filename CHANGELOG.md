@@ -8,9 +8,21 @@ All notable changes to this project are documented here. The format follows
 
 The first versioned release: Labeler was rewritten from a single PHP page into a label editor.
 
+### Changed
+
+- The printer backend is now [ptouch](https://github.com/khang-11/ptouch) instead of
+  ptouch-print. Status is read as JSON, the printer model and the loaded tape are detected
+  automatically, and network printers are supported over SNMP (the raw print port is one-way).
+- Printers are configured declaratively: a `printers` map in `config.php`, `LABELER_PRINTER_HOST`
+  for one network printer, or `LABELER_PRINTERS` JSON in Docker. `model` and `tape_width` are
+  optional overrides.
+- `ptouch --scan` finds Brother printers on the network and `ptouch --list-connected` lists USB
+  printers (a discovery button in the UI is a follow-up).
+- Requires Python 3.11 or newer (Bookworm / Debian 12+), because ptouch is a Python program.
+
 ### Added
 
-- Labels are drawn in the browser and printed as a 1-bit PNG with `ptouch-print --image`; the
+- Labels are drawn in the browser and printed as a 1-bit PNG with `ptouch --image`; the
   preview is the printout and updates while typing (#3).
 - Font selection (built-in list, fonts in the server's `fonts/` folder, fonts of the device),
   size, bold, italic, alignment, white on black, any number of lines (#4).
@@ -26,7 +38,7 @@ The first versioned release: Labeler was rewritten from a single PHP page into a
   same list; labels saved in a browser can be copied there (#34).
 - Optional password for the interface (`password`, plain or hashed): login dialog, signed
   session cookie for 30 days, log out; printer agents keep using their token (#30).
-- Several printers: with ptouch-print 1.9 the details dialog lists the attached printers and the
+- Several printers: the details dialog lists the configured or attached printers and the
   choice is kept per browser; also through a printer agent (#28).
 - Recent prints: the last 20 printed labels with a small picture, to load or print again (#27).
 - Drag and drop: move blocks by their handle, drop image files onto the page to add them (#26).

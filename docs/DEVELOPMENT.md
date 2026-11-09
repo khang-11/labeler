@@ -4,11 +4,10 @@
 
 ```
 public/            web root: index.html, app.css, api.php, js/ (ES modules), lib/qrcode.mjs (vendored)
-src/               PHP: Api, Config, Log, Png, Process, PtouchPrint, Response, bootstrap.php
-tools/ptouch-sim/  simulated ptouch-print with a simulated printer (PHP, see its README)
-tools/contract/    contract test against the real ptouch-print, built from upstream
+src/               PHP: Api, Config, Log, Png, Process, Ptouch, Response, bootstrap.php
+tools/ptouch-sim/  simulated ptouch with a simulated printer (PHP, see its README)
 tools/dev/         development image: PHP + pcov, Composer, Node, Playwright
-tests/php/         PHPUnit: API, ptouch-print wrapper, PNG checks, config, log, simulator
+tests/php/         PHPUnit: API, ptouch wrapper, PNG checks, config, log, simulator
 tests/js/          node:test: PNG encoder, bitmaps, Code 128, QR, label model, API client
 tests/e2e/         Playwright: the real UI against PHP's built-in server, the simulator and a fake Iconify API
 deploy/            systemd unit, udev rule, nginx and lighttpd examples
@@ -28,7 +27,6 @@ Everything runs in the development image, so only Docker is needed:
 tools/dev.sh composer install && tools/dev.sh npm ci   # once
 tools/dev.sh composer coverage    # PHPUnit with the 95 % gate per file
 tools/dev.sh npm test             # lint, node tests, browser tests, merged JS coverage gate
-docker build -t labeler-contract tools/contract && docker run --rm -v "$PWD:/work" labeler-contract
 ```
 
 With PHP 7.4+ and Node 22+ installed locally, `composer coverage` (needs pcov) and `npm test` work
@@ -41,14 +39,14 @@ DEV_PORT=8080 tools/dev.sh sh tools/demo.sh     # then open http://localhost:808
 ```
 
 Printed labels land in `test-results/demo/printed/` as PNG plus JSON. Other printers and states:
-`PTSIM_*` variables, e.g. `DEV_PORT=8080 tools/dev.sh env PTSIM_VERSION=1.5 PTSIM_TAPE_MM=24 sh tools/demo.sh`.
+`PTSIM_*` variables, e.g. `DEV_PORT=8080 tools/dev.sh env PTSIM_PRINTER=PT-P900W PTSIM_TAPE_MM=24 sh tools/demo.sh`.
 
 ## Tests
 
-Three layers plus a contract test, all in CI:
+Three layers, all in CI:
 
 1. **PHP unit tests** (`tests/php`, PHPUnit 9.6 so they run on PHP 7.4 to 8.4). The API and the
-   ptouch-print wrapper run the simulator as a real subprocess, so argument passing, exit codes and
+   ptouch wrapper run the simulator as a real subprocess, so argument passing, exit codes and
    output parsing are exercised end to end. One test feeds shell metacharacters through the
    process layer and checks nothing was executed.
 2. **JS unit tests** (`tests/js`, `node:test`). QR codes and barcodes are decoded with zxing, so
@@ -56,21 +54,15 @@ Three layers plus a contract test, all in CI:
    parsed back and their CRCs verified.
 3. **Browser tests** (`tests/e2e`, Playwright, Chromium). The real page against `php -S` and the
    simulator: every block type and option, layout, saved labels, fonts (server folder and device
-   fonts), every printer state (missing, P-Lite, no tape, USB permission, 360 dpi, version 1.5),
+   fonts), every printer state (missing, P-Lite, no tape, USB permission, 360 dpi, network printers),
    failing prints, and the printed PNG itself: the simulator stores it and the test scans its QR
    code and barcode with zxing. axe-core checks accessibility (WCAG 2.1 AA) of every screen
    in light and dark mode, and a keyboard-only test walks from the page start to a print.
-4. **Contract test** (`tools/contract`). Builds ptouch-print 1.6, 1.7, 1.8 and 1.9 from the
-   upstream sources and checks that the labels from our PNG encoder are read back pixel for pixel,
-   that `--copies`, `--chain` and `--precut` are accepted where Labeler uses them, that our parser
-   understands the real "no printer" output, and records whether `--text a b` still works (it
-   stopped in 1.7, which is what broke the first version of Labeler, #1). A weekly workflow runs it
-   against upstream's main branch.
-
 ### The simulated printer
 
-`tools/ptouch-sim/ptouch-print` is a drop-in for the real program: same options per version, same
-messages on stdout and stderr, same exit codes, the same image checks (palette, height). State
+`tools/ptouch-sim/ptouch` simulates the real program's `--status --json`, `--version`, `--image`,
+`--copies`, `--chain`, `--precut` and `--list-connected` options, the same JSON status shape, and
+the same image checks (palette, height). State
 comes from `PTSIM_*` variables or a JSON file that tests rewrite while the server runs. See
 [tools/ptouch-sim/README.md](../tools/ptouch-sim/README.md).
 

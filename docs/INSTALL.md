@@ -1,13 +1,13 @@
 # Installation
 
 Labeler runs where the printer is plugged in, typically a Raspberry Pi (a Zero W is enough) with
-Raspberry Pi OS. It needs PHP 7.4 or newer and ptouch-print 1.5 or newer. The steps below assume
+Raspberry Pi OS. It needs PHP 7.4 or newer and [ptouch](https://github.com/khang-11/ptouch), which needs Python 3.11 or newer. The steps below assume
 Raspberry Pi OS or Debian; other Linux distributions work the same way with their package names.
 
 ## Install script
 
-[`deploy/install.sh`](../deploy/install.sh) does steps 1 to 4a below: installs the packages, builds
-ptouch-print, downloads the newest release to `/opt/labeler`, creates the user `labeler`, installs
+[`deploy/install.sh`](../deploy/install.sh) does steps 1 to 4a below: installs the packages, installs
+ptouch, downloads the newest release to `/opt/labeler`, creates the user `labeler`, installs
 the udev rule and the systemd service. Run it again to update; `config.php` and the fonts are
 kept, the previous version stays in `/opt/labeler.old`.
 
@@ -19,8 +19,7 @@ sudo sh install.sh --zip labeler-1.0.0.zip --version 1.0.0
 sh install.sh --help
 ```
 
-Building ptouch-print takes a few minutes on a Pi Zero. CI runs the script on Debian bookworm and
-trixie for every change.
+Installing ptouch needs Python 3.11 or newer (Raspberry Pi OS Bookworm / Debian 12 or newer). CI runs the script on Debian bookworm and trixie for every change.
 
 ## Printer agent: printer and interface on different computers
 
@@ -32,7 +31,7 @@ interface, protected by an access token.
 sudo sh install.sh --agent
 ```
 
-installs ptouch-print, the agent in `/opt/labeler-agent`, the udev rule and the service
+installs ptouch, the agent in `/opt/labeler-agent`, the udev rule and the service
 `labeler-agent` on port 8631, generates a token (kept in `/opt/labeler-agent/config.php`, readable
 only by root and the service) and prints:
 
@@ -49,29 +48,30 @@ agent and keeps the token. Without `--no-service`, `systemctl status labeler-age
 The token travels in plain HTTP. On your own network that is usually fine; across networks you
 do not trust, put the agent behind a reverse proxy with TLS or a VPN.
 
-## 1. ptouch-print
+## 1. ptouch
 
-Debian and Raspberry Pi OS only package the CUPS driver, not ptouch-print, so build it from the
-sources:
-
-```sh
-sudo apt install git cmake gcc make pkg-config gettext libgd-dev libusb-1.0-0-dev
-git clone https://git.familie-radermacher.ch/linux/ptouch-print.git
-cd ptouch-print
-git checkout v1.9            # or the newest tag: git tag
-cmake -S . -B build && cmake --build build
-sudo cmake --install build   # installs /usr/local/bin/ptouch-print
-ptouch-print --version
-```
-
-With the printer connected and switched on (mode switch on **E**, not EL), check it:
+Debian and Raspberry Pi OS do not package ptouch, so install it from the fork into a virtual
+environment:
 
 ```sh
-sudo ptouch-print --info
+sudo apt install python3 python3-venv python3-pil python3-setuptools git
+sudo git clone https://github.com/khang-11/ptouch.git /opt/ptouch-src
+sudo python3 -m venv --system-site-packages /opt/ptouch
+sudo /opt/ptouch/bin/pip install --no-deps /opt/ptouch-src
+sudo /opt/ptouch/bin/pip install packbits
+sudo ln -s /opt/ptouch/bin/ptouch /usr/local/bin/ptouch
+ptouch --version
 ```
 
-`maximum printing width for this tape is 76px` and `media width = 12 mm` mean the printer and the
-tape are found.
+Python 3.11 or newer is required (Bookworm / Debian 12 or newer). With the printer connected and
+switched on (mode switch on **E**, not EL), check it:
+
+```sh
+ptouch --status --usb
+```
+
+`Media width: 12 mm` and `Device status: READY` mean the printer and the tape are found. For a
+network printer use `ptouch --status --host <printer-ip>`; no model or tape setting is needed.
 
 ## 2. Labeler
 
@@ -86,7 +86,7 @@ The release contains `public/` (the web root), `src/` (the PHP code, outside the
 
 ## 3. Printer access for the service
 
-ptouch-print's own udev rule only lets users who are logged in at the console use the printer.
+ptouch's own udev rule only lets users who are logged in at the console use the printer.
 A service needs a group:
 
 ```sh
@@ -151,17 +151,17 @@ Coming from the first version of Labeler (a single `index.php` in the web root):
 ## Troubleshooting
 
 The badge in the top right corner shows the state; click it for the details and the print log
-with the exact ptouch-print command and output.
+with the exact ptouch command and output.
 
 | Message | What to do |
 | --- | --- |
-| ptouch-print was not found | Install it (step 1) or set `ptouch_bin` to its full path, e.g. `/usr/local/bin/ptouch-print`. |
+| ptouch was not found | Install it (step 1) or set `ptouch_bin` to its full path, e.g. `/usr/local/bin/ptouch`. |
 | No printer found | USB cable, power, mode switch on **E**. `lsusb` should list a Brother device. |
 | A printer is attached, but the web server may not use it | udev rule and group (step 3); unplug and plug in the printer; restart the service. |
 | The printer is in P-Lite mode | Mode switch from EL to E, or hold the PLite button for two seconds. |
 | No tape cassette inserted | Insert tape; close the cover. |
 | The cover is open / Cutter jam / Replace the tape cassette / overheated / batteries weak | What the printer reports about itself; the message says what to do. Unknown error bits are shown as `error 0x…`. |
-| Chain printing / auto cut is greyed out | The installed ptouch-print is too old: chain needs 1.6, auto cut 1.8. Auto cut also needs a printer with a cutter. |
+| Chain printing / auto cut is greyed out | The installed ptouch is too old: chain needs 1.6, auto cut 1.8. Auto cut also needs a printer with a cutter. |
 
 ### The printer switches itself off
 
@@ -178,8 +178,8 @@ sleeping USB device, not one that is off. What helps:
   smart plug can switch them on and off.
 - Switching the USB port off and on (`uhubctl`) does not help: the printer has its own power supply.
 
-Run ptouch-print as the service user to see what the service sees:
+Run ptouch as the service user to see what the service sees:
 
 ```sh
-sudo -u labeler ptouch-print --info
+sudo -u labeler ptouch --info
 ```

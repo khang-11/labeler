@@ -13,7 +13,7 @@ final class ConfigProcessLogTest extends TestCase
     public function testDefaults(): void
     {
         $config = Config::load($this->tmp, $this->tmp . '/missing.php', []);
-        $this->assertSame('ptouch-print', $config->get('ptouch_bin'));
+        $this->assertSame('ptouch', $config->get('ptouch_bin'));
         $this->assertSame($this->tmp . '/data', $config->get('data_dir'));
         $this->assertSame(60, $config->get('timeout'));
         $this->assertSame(Config::defaults($this->tmp), $config->all());
@@ -26,6 +26,8 @@ final class ConfigProcessLogTest extends TestCase
         $this->assertSame(7, $config->get('timeout'));
         $this->assertSame('/opt/pt', $config->get('ptouch_bin'));
         $this->assertSame('A1', $config->get('serial'));
+        $this->assertSame('default', $config->get('printer'));
+        $this->assertSame('A1', $config->get('printers')['default']['serial']);
         $this->assertSame('', $config->get('printer_url'));
         $this->assertSame('http://pi.lan:8631', Config::load($this->tmp, null, ['LABELER_PRINTER_URL' => ' http://pi.lan:8631 '])->get('printer_url'));
         $this->assertSame('', Config::load($this->tmp, null, ['LABELER_PRINTER_URL' => 'file:///etc/passwd'])->get('printer_url'));
@@ -35,6 +37,64 @@ final class ConfigProcessLogTest extends TestCase
         $this->assertSame('http://icons.lan:3000', Config::load($this->tmp, null, ['LABELER_ICON_API' => 'http://icons.lan:3000'])->get('icon_api'));
         $this->assertSame(0, $config->get('max_copies'));
         $this->assertArrayNotHasKey('unknown', $config->all());
+    }
+
+    public function testPrintersFromConfigAndEnvironment(): void
+    {
+        $file = $this->tmp . '/config.php';
+        file_put_contents($file, "<?php return ['printers' => ['office' => ['host' => '192.168.8.235', 'tape_width' => 24]], 'printer' => 'office'];");
+        $config = Config::load($this->tmp, null, []);
+        $printers = $config->get('printers');
+        $this->assertArrayHasKey('office', $printers);
+        $this->assertSame('192.168.8.235', $printers['office']['host']);
+        $this->assertSame(24.0, $printers['office']['tape_width']);
+        $this->assertSame('office', $config->get('printer'));
+
+        $env = Config::load($this->tmp . '/empty', null, [
+            'LABELER_PRINTERS' => '{"desk":{"usb":true,"serial":"abc"},"office":{"host":"10.0.0.2"}}',
+            'LABELER_PRINTER' => 'office',
+            'LABELER_PRINTER_HOST' => 'ignored.example',
+        ]);
+        $this->assertSame('10.0.0.2', $env->get('printers')['office']['host']);
+        $this->assertTrue($env->get('printers')['desk']['usb']);
+        $this->assertSame('office', $env->get('printer'));
+
+        $single = Config::load($this->tmp . '/empty', null, ['LABELER_PRINTER_HOST' => '192.0.2.10']);
+        $this->assertSame('192.0.2.10', $single->get('printers')['default']['host']);
+        $this->assertSame('default', $single->get('printer'));
+    }
+
+    public function testInvalidPrintersAreIgnored(): void
+    {
+        $config = Config::load($this->tmp . '/empty', null, ['LABELER_PRINTERS' => 'not json']);
+        $this->assertSame(['default'], array_keys($config->get('printers')));
+        $config = Config::load($this->tmp . '/empty', null, ['LABELER_PRINTERS' => '{"bad id!":{"host":"x"},"ok":{"host":"y"}}']);
+        $this->assertSame(['ok'], array_keys($config->get('printers')));
+    }
+
+    public function testBrokenPrintersJsonStillAllowsTheShorthands(): void
+    {
+        $host = Config::load($this->tmp . '/empty', null, [
+            'LABELER_PRINTERS' => 'not json',
+            'LABELER_PRINTER_HOST' => '192.0.2.10',
+        ]);
+        $this->assertSame('192.0.2.10', $host->get('printers')['default']['host']);
+
+        $usb = Config::load($this->tmp . '/empty', null, [
+            'LABELER_PRINTERS' => 'not json',
+            'LABELER_SERIAL' => 'S1',
+        ]);
+        $this->assertSame('S1', $usb->get('printers')['default']['serial']);
+
+        $none = Config::load($this->tmp . '/empty', null, ['LABELER_PRINTERS' => '[]']);
+        $this->assertTrue($none->get('printers')['default']['usb']);
+    }
+
+    public function testPrinterFallsBackToTheFirstEntry(): void
+    {
+        $file = $this->tmp . '/config.php';
+        file_put_contents($file, "<?php return ['printers' => ['office' => ['host' => '192.0.2.1']], 'printer' => 'missing'];");
+        $this->assertSame('office', Config::load($this->tmp, null, [])->get('printer'));
     }
 
     public function testConfigFileNotReturningAnArrayIsIgnored(): void
