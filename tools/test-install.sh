@@ -2,10 +2,10 @@
 # Tests deploy/install.sh in a clean Debian container: fresh install with a real ptouch
 # installation, then an update that must keep config.php and the fonts, then the API as user labeler.
 #   sh tools/test-install.sh [debian:bookworm]
-set -eux
+set -eu
 cd "$(dirname "$0")/.."
 image=${1:-debian:bookworm}
-MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/src:ro" "$image" sh -euc '
+MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/src:ro" "$image" sh -euxc '
   apt-get update -qq && apt-get install -y -qq zip tar >/dev/null
   mkdir /tmp/repo
   tar -C /src --exclude=./node_modules --exclude=./vendor --exclude=./test-results --exclude=./build --exclude=./coverage -cf - . | tar -C /tmp/repo -xf -
